@@ -1,0 +1,1430 @@
+{
+  "name": "Mira – Project Intelligence Assistant",
+  "nodes": [
+    {
+      "id": "ab609b1a-0b76-40c8-acca-898297f0d0a1",
+      "name": "Chat with Mira",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d7b5a797-6c38-42dc-b51f-596a99aeb586",
+      "parameters": {
+        "options": {}
+      }
+    },
+    {
+      "id": "c37f2c1b-05b3-4bfa-b07e-f279999bb3ff",
+      "name": "Run Test Suite",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "9eeafe5b-a237-4a8a-ae71-1cf8ed4d0823",
+      "name": "Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        110
+      ],
+      "parameters": {
+        "jsCode": "// Baseline test dataset (eval_mira_inputs.txt) with machine-checkable expectations.\n// Emits one item per test listed in RUN – or, when started from the Chat Trigger, the chat message.\n\nconst incoming = $input.first()?.json ?? {};\nif (incoming.chatInput) {\n  return [{ json: { test_id: 'chat', query: incoming.chatInput, session_id: incoming.sessionId ?? null, checks: [] } }];\n}\n\nconst RUN = [\"T1\", \"T2\", \"T3\", \"T4\", \"T5\", \"T6\", \"T7\", \"T8\", \"T9\", \"T10\", \"T11\", \"T12\", \"X1\"];\nconst WITH_ROUTE = true; // full Mira workflow: also check the Orchestrator's route\nconst JUDGE_MATERIAL_MAX = null; // with the Fact-Check Judge: advisory max material claims (null = no judge)\n\n// Check types: status (value or list of accepted values) | judge_material_max | judge_min | phase_count | field (output field equals value) | grounded_min |\n// mentions_all / mentions_any / not_mentions (case-insensitive, in rendered output)\n// route: the agent the Orchestrator should pick (checked only when WITH_ROUTE).\nconst TESTS = [\n  { test_id: 'T1', query: 'Generate a project plan for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'planner',\n    checks: [{ type: 'status', value: 'PLAN' }, { type: 'phase_count', value: 8 }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T2', query: 'Generate a project plan for: \"We want to build a chatbot.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline', 'team'] }] },\n  { test_id: 'T3', query: 'Generate a risk assessment for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'risk',\n    checks: [{ type: 'status', value: 'ASSESSMENT' }, { type: 'field', field: 'risk_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 },\n      { type: 'mentions_any', value: ['logistics', 'route', 'forecast', 'delivery', 'inventory'] }] },\n  { test_id: 'T4', query: 'Generate a risk assessment for: \"New project starting soon.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline'] },\n      { type: 'not_mentions', value: ['R01', 'R02', 'Data Quality', 'Likelihood'] }] },\n  { test_id: 'T5', query: 'Generate a weekly status report using the sample task board data for Sprint 3.', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Sprint 3' },\n      { type: 'field', field: 'counts', value: 'Done 0 · In Progress 2 · Blocked 0 · To Do 2' },\n      { type: 'mentions_all', value: ['Shortlist AI use cases', 'Define success criteria for each use case', 'Vendor evaluation for ML platform', 'Legal review of data usage'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T6', query: 'Generate a weekly status report for: \"Things are going fine.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: ['NO_DATA', 'NEEDS_CLARIFICATION'] }, { type: 'mentions_all', value: ['no task data'] },\n      { type: 'not_mentions', value: ['%', 'T0'] }] },\n  { test_id: 'T7', query: 'What are the top 3 risks for the ABCDE Ltd project based on the risk data?', route: 'risk',\n    checks: [{ type: 'status', value: 'TOP_RISKS' }, { type: 'field', field: 'risk_count', value: 3 },\n      { type: 'field', field: 'assessed_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 }] },\n  { test_id: 'T8', query: 'Which tasks are blocked or at risk of missing their deadline based on the task board?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'blocked', value: 'T024' }, { type: 'field', field: 'overdue', value: 'T006' },\n      { type: 'mentions_all', value: ['T024', 'Security review of AI infrastructure', 'T006'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T9', query: 'Generate a project plan for a 2-week project with no details provided.', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'goal', 'deliverable'] }] },\n  { test_id: 'T10', query: 'Summarize the current project status: how many tasks are done, in progress, and to do?', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Whole project' },\n      { type: 'field', field: 'counts', value: 'Done 5 · In Progress 3 · Blocked 1 · To Do 16' }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T11', query: 'What milestones are coming up in the next 2 weeks based on the timeline?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'upcoming_count', value: 2 },\n      { type: 'mentions_all', value: ['Current systems audit report', 'Gap analysis report'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T12', query: 'Generate a stakeholder update email summarizing Sprint 2 progress.', route: 'comms',\n    checks: [{ type: 'status', value: 'EMAIL' }, { type: 'field', field: 'scope', value: 'Sprint 2' },\n      { type: 'mentions_all', value: ['Audit existing data infrastructure', 'Map current logistics workflows', 'Identify data gaps'] },\n      { type: 'not_mentions', value: ['Shortlist AI use cases', 'Legal review of data usage', 'Security review', 'Vendor evaluation', 'T007', 'T024', 'T025'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  // Extra robustness case (not in the baseline dataset).\n  { test_id: 'X1', query: 'What is the weather in Paris tomorrow?', route: 'fallback',\n    checks: [{ type: 'status', value: 'OUT_OF_SCOPE' }] },\n];\n\nreturn TESTS.filter((t) => RUN.includes(t.test_id)).map(({ route, ...t }) => ({\n  json: {\n    ...t,\n    checks: [\n      ...(WITH_ROUTE && route ? [{ type: 'field', field: 'route', value: route }] : []),\n      ...t.checks,\n      ...(JUDGE_MATERIAL_MAX !== null ? [{ type: 'judge_material_max', value: JUDGE_MATERIAL_MAX, advisory: true }] : []),\n    ],\n  },\n}));\n"
+      }
+    },
+    {
+      "id": "31ba5a38-eefe-4c06-9695-afa49b03dbb3",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        110
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b11f3d35-5d55-4797-87c1-ecf2732a87ef",
+              "name": "model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "c8070aee-95ca-476f-bb12-0aefcbe4e8d6",
+              "name": "judgeModel",
+              "value": "gpt-4o",
+              "type": "string"
+            },
+            {
+              "id": "57efa0cd-42ca-4919-a069-815f977e2875",
+              "name": "langsmithProject",
+              "value": "mira",
+              "type": "string"
+            },
+            {
+              "id": "c564ca28-b564-4e9b-8e6c-bff6cf690823",
+              "name": "langsmithEndpoint",
+              "value": "https://api.smith.langchain.com",
+              "type": "string"
+            },
+            {
+              "id": "df4ce1e4-a449-4453-bc69-9ea937c4c580",
+              "name": "asOfDate",
+              "value": "2026-04-24",
+              "type": "string"
+            },
+            {
+              "id": "3c8ea9a0-3236-4703-9528-7cb342e15d75",
+              "name": "projectStartDate",
+              "value": "2026-03-30",
+              "type": "string"
+            },
+            {
+              "id": "817fcdd1-8a12-4e95-8bbc-a08424c46bbd",
+              "name": "upcomingWindowDays",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "107b8f1a-afb6-4b84-bf60-3a6300a14083",
+              "name": "dueSoonDays",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "f1db0954-cd7e-4fbc-b5ac-429be435b100",
+              "name": "temperature",
+              "value": 0.2,
+              "type": "number"
+            },
+            {
+              "id": "a0e5caf2-dbca-44f8-99d6-753b0655f196",
+              "name": "maxTokens",
+              "value": 3000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "35cd0c5e-ffc0-4ac3-9bba-539cbe457533",
+      "name": "Knowledge Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        110
+      ],
+      "parameters": {
+        "jsCode": "// Mira Knowledge Base: embedded project data + deterministic FACTS.\n// Code computes counts, filters and dates so the LLM agents never have to.\n// To use another project, replace the four data blocks below.\n\nconst cfg = $('Config').first().json;\n\n// ---------- Embedded project data (generated from Resources/) ----------\nconst PROJECT_NAME = 'AI Adoption Project – ABCDE Ltd.';\nconst PROJECT_DESCRIPTION = `AI Adoption Project Description for ABCDE Ltd.\n\nABCDE Ltd., a mid-sized enterprise specializing in logistics and supply chain solutions, is embarking on an AI adoption initiative to enhance operational efficiency, improve customer experience, and drive data-driven decision-making across the organization. This project will focus on integrating AI-powered tools into core business functions, including demand forecasting, route optimization, inventory management, and customer support. By leveraging machine learning models and natural language processing, the company aims to reduce manual overhead, minimize errors, and uncover actionable insights from historical and real-time data.\n\nThe AI adoption project will be implemented in phases, beginning with a detailed assessment of current workflows and data infrastructure, followed by pilot implementations in targeted departments. Key goals include reducing delivery delays by 15%, lowering operational costs by 10%, and improving service responsiveness. A cross-functional task force comprising data scientists, IT professionals, and business stakeholders will oversee the deployment and ensure alignment with organizational objectives. This strategic move is expected to position ABCDE Ltd. as a technology-forward leader in the logistics industry.`;\nconst TIMELINE_CSV = `phase,phase_name,start_week,end_week,key_activities,milestones_deliverables\n1,Project Initiation,1,2,\"Define project scope; Form cross-functional team; Initial stakeholder meeting\",\"Project charter signed off; Team structure finalized\"\n2,Current State Analysis,3,4,\"Assess existing processes & systems; Identify data sources & gaps\",\"Current systems audit report; Gap analysis report\"\n3,Use Case Selection,5,6,\"Shortlist priority AI use cases (forecasting, route optimization)\",\"Final list of prioritized use cases with success criteria\"\n4,Pilot Design,7,10,\"Data collection & preparation; Model design and development\",\"Working prototype models; Data pipelines established\"\n5,Pilot Implementation,11,14,\"Deploy AI models in test environments; Monitor performance\",\"Pilot results report; User feedback and performance metrics\"\n6,Evaluation & Iteration,15,16,\"Evaluate pilot outcomes; Adjust models as needed\",\"Updated models and process refinements\"\n7,Full Deployment,17,22,\"Scale AI models across selected departments; Train staff\",\"Full production rollout; Training sessions completed\"\n8,Monitoring & Review,23,24,\"Continuous performance monitoring; Final project review\",\"Project closure report; Recommendations for future scaling\"`;\nconst RISKS_CSV = `risk_id,category,risk_challenge,impact,mitigation_strategy\nR01,Data Quality & Availability,Incomplete or unstructured data,Poor model performance and inaccurate outcomes,Perform early data audits and implement robust data governance\nR02,Integration Issues,Difficulty integrating AI with legacy systems,Delays in deployment and operational disruptions,Plan integration roadmap and use APIs/middleware\nR03,Talent & Skills Gap,Lack of internal AI/ML expertise,Overreliance on external vendors and slow progress,Provide staff training and hire specialized talent\nR04,Change Resistance,Employees resist adopting AI-driven workflows,Low adoption and reduced ROI,Strong change management and early engagement\nR05,Ethical & Legal Concerns,Risks of biased models or data privacy violations,Legal repercussions and reputational damage,Involve legal early and implement fairness checks\nR06,Cost Overruns,Underestimation of AI development costs,Budget constraints and project delays,Set realistic budget and build in contingency funds\nR07,Unrealistic Expectations,Stakeholders expect immediate ROI,Disillusionment and loss of support,Align expectations and show quick wins\nR08,Model Performance Drift,AI models lose accuracy over time,Incorrect decisions and trust erosion,Regular retraining cycles and monitoring dashboards\nR09,Security Vulnerabilities,AI models targeted by adversarial attacks,Data breaches and operational risks,Adopt AI security best practices and penetration testing\nR10,Vendor Lock-in,Overdependence on a specific AI platform,Flexibility loss and future switching costs,Favor open standards and negotiate flexible vendor terms`;\nconst TASKS_CSV = `task_id,task_name,status,assignee,priority,sprint,due_date,labels,description\nT001,Define project scope and objectives,Done,Arjun Mehta,High,Sprint 1,2026-04-07,Planning,\"Document project scope, goals, and success criteria for AI adoption\"\nT002,Form cross-functional task force,Done,Sarah Lin,High,Sprint 1,2026-04-07,Planning,\"Identify and onboard team members from data science, IT, and business units\"\nT003,Initial stakeholder alignment meeting,Done,Arjun Mehta,High,Sprint 1,2026-04-10,Planning,\"Present project charter and get sign-off from leadership\"\nT004,Audit existing data infrastructure,Done,Priya Nair,High,Sprint 2,2026-04-18,Analysis,\"Assess current databases, data pipelines, and data quality\"\nT005,Map current logistics workflows,Done,James Wong,Medium,Sprint 2,2026-04-18,Analysis,\"Document end-to-end processes for demand forecasting, routing, and inventory\"\nT006,Identify data gaps and quality issues,In Progress,Priya Nair,High,Sprint 2,2026-04-21,Analysis,\"Gap analysis report comparing available data vs requirements for AI models\"\nT007,Shortlist AI use cases,In Progress,Arjun Mehta,High,Sprint 3,2026-04-28,Use Cases,\"Evaluate and prioritize: demand forecasting, route optimization, inventory mgmt, customer support\"\nT008,Define success criteria for each use case,To Do,Sarah Lin,High,Sprint 3,2026-05-02,Use Cases,\"Set measurable KPIs: 15% reduction in delivery delays, 10% cost reduction\"\nT009,Vendor evaluation for ML platform,To Do,James Wong,Medium,Sprint 3,2026-05-05,Use Cases,\"Compare cloud ML platforms (AWS SageMaker, Azure ML, GCP Vertex AI)\"\nT010,Collect historical demand data,To Do,Priya Nair,High,Sprint 4,2026-05-12,Data Prep,\"Extract 2 years of demand data from ERP system\"\nT011,Data cleaning and preprocessing pipeline,To Do,Priya Nair,High,Sprint 4,2026-05-19,Data Prep,\"Build automated pipeline for data cleaning, normalization, feature engineering\"\nT012,Design demand forecasting model,To Do,Ravi Kumar,High,Sprint 4,2026-05-19,Model Dev,\"Select algorithm (LSTM, Prophet, XGBoost), define input features\"\nT013,Design route optimization model,To Do,Ravi Kumar,Medium,Sprint 5,2026-05-26,Model Dev,\"Graph-based optimization with constraints (time windows, vehicle capacity)\"\nT014,Build model training pipeline,To Do,Ravi Kumar,High,Sprint 5,2026-06-02,Model Dev,\"Automated training, validation, and model versioning\"\nT015,Deploy demand model to test environment,To Do,James Wong,High,Sprint 6,2026-06-09,Pilot,\"Deploy to staging, set up monitoring, define test scenarios\"\nT016,Run pilot with logistics team,To Do,Arjun Mehta,High,Sprint 6,2026-06-16,Pilot,\"2-week pilot with 3 logistics coordinators using demand forecasting predictions\"\nT017,Collect pilot feedback and metrics,To Do,Sarah Lin,High,Sprint 7,2026-06-23,Evaluation,\"Survey users, measure prediction accuracy, compare with manual forecasts\"\nT018,Iterate on model based on feedback,To Do,Ravi Kumar,Medium,Sprint 7,2026-06-30,Evaluation,\"Adjust features, retrain model, validate improvements\"\nT019,Prepare production deployment plan,To Do,James Wong,High,Sprint 8,2026-07-07,Deployment,\"Infrastructure scaling, rollback plan, monitoring setup\"\nT020,Staff training program,To Do,Sarah Lin,Medium,Sprint 8,2026-07-14,Deployment,\"Train 25 logistics staff on using AI-powered forecasting dashboard\"\nT021,Full production rollout,To Do,Arjun Mehta,High,Sprint 9,2026-07-21,Deployment,\"Go-live for demand forecasting across all 3 distribution centers\"\nT022,Set up continuous monitoring,To Do,Priya Nair,High,Sprint 9,2026-07-28,Monitoring,\"Model performance dashboards, drift detection alerts, retraining triggers\"\nT023,Project closure report,To Do,Arjun Mehta,Medium,Sprint 10,2026-08-04,Monitoring,\"Final report: outcomes vs targets, lessons learned, recommendations for Phase 2\"\nT024,Security review of AI infrastructure,Blocked,James Wong,High,Sprint 5,2026-05-26,Security,\"Penetration testing and vulnerability assessment - BLOCKED: waiting for security team availability\"\nT025,Legal review of data usage,In Progress,Sarah Lin,High,Sprint 3,2026-04-28,Compliance,\"Review data privacy compliance for using customer delivery data in ML models\"`;\n\n// ---------- Helpers ----------\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [], field = '', inQuotes = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (inQuotes) {\n      if (c === '\"' && text[i + 1] === '\"') { field += '\"'; i++; }\n      else if (c === '\"') inQuotes = false;\n      else field += c;\n    } else if (c === '\"') inQuotes = true;\n    else if (c === ',') { row.push(field); field = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(field); field = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else field += c;\n  }\n  row.push(field);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n  const [header, ...body] = rows;\n  return body.map((r) => Object.fromEntries(header.map((h, i) => [h.trim(), (r[i] ?? '').trim()])));\n}\n\nconst DAY = 86400000;\nconst toDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };\nconst fmt = (d) => d.toISOString().slice(0, 10);\nconst addDays = (d, n) => new Date(d.getTime() + n * DAY);\nconst daysBetween = (a, b) => Math.round((b - a) / DAY);\nconst countBy = (arr, key) => arr.reduce((acc, x) => ({ ...acc, [x[key]]: (acc[x[key]] ?? 0) + 1 }), {});\n\nconst asOf = toDate(cfg.asOfDate);\nconst projectStart = toDate(cfg.projectStartDate);\nconst upcomingEnd = addDays(asOf, Number(cfg.upcomingWindowDays));\nconst dueSoonEnd = addDays(asOf, Number(cfg.dueSoonDays));\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\n// ---------- Timeline: week numbers -> calendar dates ----------\nconst timeline = parseCsv(TIMELINE_CSV).map((p) => {\n  const start = addDays(projectStart, (Number(p.start_week) - 1) * 7);\n  const end = addDays(projectStart, Number(p.end_week) * 7 - 1);\n  const status = end < asOf ? 'Completed (by schedule)' : start > asOf ? 'Upcoming' : 'Current';\n  return {\n    phase: Number(p.phase),\n    phase_name: p.phase_name,\n    start_week: Number(p.start_week),\n    end_week: Number(p.end_week),\n    start_date: fmt(start),\n    end_date: fmt(end),\n    schedule_status: status,\n    key_activities: p.key_activities.split(';').map((s) => s.trim()).filter(Boolean),\n    milestones: p.milestones_deliverables.split(';').map((s) => s.trim()).filter(Boolean),\n  };\n});\n\n// Each milestone is due at the end of its phase.\nconst milestones = timeline.flatMap((p) => p.milestones.map((m) => ({\n  milestone: m,\n  phase: p.phase,\n  phase_name: p.phase_name,\n  due_week: p.end_week,\n  due_date: p.end_date,\n  days_from_as_of: daysBetween(asOf, toDate(p.end_date)),\n})));\n\n// ---------- Project outcome phrases ----------\n// Short verbatim phrases from the description (goals, use cases, capabilities). Agents cite these\n// from a fixed list instead of free-text quoting, so a citation can never be invented.\nconst LEAD = /^(and|or|including|include|includes|the company aims to|aims to|by leveraging|by|to|of|with|is embarking on an ai adoption initiative to|key goals include|this project will focus on|beginning with|followed by|will)\\s+/i;\nconst outcomePhrases = [...new Set(PROJECT_DESCRIPTION.split('\\n').slice(1).join(' ')\n  .split(/[.;,]|\\s+and\\s+(?=[a-z]+ing\\b|improv|reduc|lower|minim|uncov|drive|enhanc)/)\n  .map((s) => { let t = s.trim(), prev; do { prev = t; t = t.replace(LEAD, ''); } while (t !== prev); return t; })\n  .filter((s) => { const n = s.split(/\\s+/).length; return n >= 2 && n <= 9 && !/ABCDE|^This|^The /.test(s); }))];\nconst USE_CASES = ['demand forecasting', 'route optimization', 'inventory management', 'customer support']\n  .filter((u) => PROJECT_DESCRIPTION.toLowerCase().includes(u));\n\n// ---------- Risks ----------\nconst risks = parseCsv(RISKS_CSV);\n\n// ---------- Tasks ----------\nconst tasks = parseCsv(TASKS_CSV).map((t) => {\n  const due = toDate(t.due_date);\n  return { ...t, days_until_due: daysBetween(asOf, due) };\n});\nconst open = (t) => t.status !== 'Done';\n\nconst statusCounts = Object.fromEntries(STATUSES.map((s) => [s, tasks.filter((t) => t.status === s).length]));\nconst unknownStatuses = tasks.filter((t) => !STATUSES.includes(t.status)).map((t) => `${t.task_id}: ${t.status}`);\n\nconst sprintNames = [...new Set(tasks.map((t) => t.sprint))]\n  .sort((a, b) => Number(a.replace(/\\D/g, '')) - Number(b.replace(/\\D/g, '')));\nconst sprints = sprintNames.map((name) => {\n  const ts = tasks.filter((t) => t.sprint === name);\n  const dues = ts.map((t) => t.due_date).sort();\n  return {\n    sprint: name,\n    first_due: dues[0],\n    last_due: dues[dues.length - 1],\n    task_count: ts.length,\n    status_counts: Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length])),\n    task_ids: ts.map((t) => t.task_id),\n  };\n});\n// Current sprint = first sprint whose last due date has not passed.\nconst currentSprint = (sprints.find((s) => toDate(s.last_due) >= asOf) ?? sprints[sprints.length - 1]).sprint;\n\nconst brief = (t) => ({\n  task_id: t.task_id, task_name: t.task_name, status: t.status, assignee: t.assignee,\n  priority: t.priority, sprint: t.sprint, due_date: t.due_date, days_until_due: t.days_until_due,\n});\n\nconst blocked = tasks.filter((t) => t.status === 'Blocked').map((t) => ({ ...brief(t), description: t.description }));\nconst overdue = tasks.filter((t) => open(t) && toDate(t.due_date) < asOf).map(brief);\nconst dueSoon = tasks.filter((t) => open(t) && t.status !== 'Blocked'\n  && toDate(t.due_date) >= asOf && toDate(t.due_date) <= dueSoonEnd).map(brief);\n\nconst workload = Object.entries(countBy(tasks.filter(open), 'assignee'))\n  .map(([assignee, open_tasks]) => ({\n    assignee,\n    open_tasks,\n    open_high_priority: tasks.filter((t) => open(t) && t.assignee === assignee && t.priority === 'High').length,\n    in_progress: tasks.filter((t) => t.status === 'In Progress' && t.assignee === assignee).map((t) => t.task_id),\n  }))\n  .sort((a, b) => b.open_tasks - a.open_tasks);\n\nconst currentWeek = Math.floor(daysBetween(projectStart, asOf) / 7) + 1;\nconst currentPhase = timeline.find((p) => p.schedule_status === 'Current') ?? null;\n\nconst facts = {\n  as_of_date: fmt(asOf),\n  project_start_date: fmt(projectStart),\n  current_week: currentWeek,\n  total_weeks: Math.max(...timeline.map((p) => p.end_week)),\n  current_phase: currentPhase ? `Phase ${currentPhase.phase}: ${currentPhase.phase_name}` : 'None (outside timeline)',\n  current_sprint: currentSprint,\n  total_tasks: tasks.length,\n  status_counts: statusCounts,\n  completion_pct: Math.round((statusCounts.Done / tasks.length) * 100),\n  blocked_tasks: blocked,\n  overdue_tasks: overdue,\n  due_soon_tasks: dueSoon,\n  due_soon_window: `${fmt(asOf)} to ${fmt(dueSoonEnd)}`,\n  upcoming_milestones: milestones.filter((m) => m.days_from_as_of >= 0 && toDate(m.due_date) <= upcomingEnd),\n  upcoming_window: `${fmt(asOf)} to ${fmt(upcomingEnd)}`,\n  next_milestones_after_window: milestones.filter((m) => toDate(m.due_date) > upcomingEnd).slice(0, 2),\n  sprints,\n  workload,\n  risk_count: risks.length,\n  risk_categories: risks.map((r) => `${r.risk_id} ${r.category}`),\n  data_warnings: unknownStatuses.map((s) => `Unrecognised task status: ${s}`),\n};\n\nreturn [{\n  json: {\n    project: { name: PROJECT_NAME, description: PROJECT_DESCRIPTION.trim(), outcome_phrases: outcomePhrases, use_cases: USE_CASES },\n    timeline,\n    milestones,\n    risks,\n    tasks,\n    facts,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "f2e25062-260d-4862-81d9-c4f5b15cccf2",
+      "name": "Queue Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        110
+      ],
+      "parameters": {
+        "jsCode": "// Hand the requests (not the knowledge base) to the loop.\nreturn $('Requests').all();\n"
+      }
+    },
+    {
+      "id": "5fa8ffb3-c248-41aa-b9f4-21ac5e7fa5f2",
+      "name": "Loop Over Requests",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1100,
+        110
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "id": "c3d307b2-8937-498d-b7f9-e455d663b963",
+      "name": "Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "// Scores each agent output against its test's expectations (see Test Cases node).\n\nconst outputs = $input.all().map((i) => i.json);\nconst traceIds = outputs.map((o) => o.langsmith_trace_id);\n\nfunction evaluate(check, out) {\n  const text = out.markdown.toLowerCase();\n  switch (check.type) {\n    case 'status':\n      return [[].concat(check.value).includes(out.status), `status ${out.status}`];\n    case 'phase_count':\n      return [out.phase_count === check.value, `${out.phase_count} phases`];\n    case 'field':\n      return [out[check.field] === check.value, `${check.field} = ${JSON.stringify(out[check.field])}`];\n    case 'judge_material_max': {\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      const claims = out.judge?.unsupported_claims ?? [];\n      const material = claims.filter((c) => c.severity === 'material').length;\n      return [out.judge_score !== null && material <= check.value, `fact-check ${out.judge_score ?? '–'}/5 · ${material} material, ${claims.length - material} minor`];\n    }\n    case 'judge_min':\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      return [(out.judge_score ?? 0) >= check.value, `fact-check ${out.judge_score ?? '–'}/5${out.unsupported_count ? ` (${out.unsupported_count} unsupported)` : ''}`];\n    case 'grounded_min': {\n      const score = out.grounding?.score ?? 0;\n      return [score >= check.value, `groundedness ${(score * 100).toFixed(0)}%`];\n    }\n    case 'mentions_all': {\n      const missing = check.value.filter((term) => !text.includes(term.toLowerCase()));\n      return [missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `mentions ${check.value.join(', ')}`];\n    }\n    case 'mentions_any': {\n      const hit = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [hit.length > 0, hit.length ? `mentions ${hit.join(', ')}` : `none of: ${check.value.join(', ')}`];\n    }\n    case 'not_mentions': {\n      const found = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [found.length === 0, found.length ? `should not mention: ${found.join(', ')}` : 'no forbidden terms'];\n    }\n    default:\n      return [false, `unknown check ${check.type}`];\n  }\n}\n\nreturn outputs.map((out, i) => {\n  // Advisory checks (the LLM judge, ~50% measured precision) are shown as INFO and never decide the verdict.\n  const results = (out.checks ?? []).map((c) => {\n    const [pass, detail] = evaluate(c, out);\n    return `${c.advisory ? 'INFO' : pass ? 'PASS' : 'FAIL'} – ${c.type}: ${detail}${c.advisory && !pass ? ' (review)' : ''}`;\n  });\n  const failed = results.filter((r) => r.startsWith('FAIL')).length;\n  const graded = results.filter((r) => !r.startsWith('INFO')).length;\n  return {\n    json: {\n      test_id: out.test_id,\n      verdict: results.length === 0 ? 'NO CHECKS' : failed === 0 ? 'PASS' : 'FAIL',\n      checks: results,\n      checks_passed: graded - failed,\n      checks_total: graded,\n      status: out.status,\n      tokens: out.usage.total_tokens,\n      route: out.route,\n      expected_route: (out.checks ?? []).find((c) => c.type === 'field' && c.field === 'route')?.value ?? null,\n      groundedness: out.grounding?.score ?? null,\n      judge_score: out.judge_score,\n      judge_material: out.judge_skipped ? null : (out.judge?.unsupported_claims ?? []).filter((c) => c.severity === 'material').length,\n      query: out.query,\n      started_at: out.started_at_trace ?? null,\n      ended_at: out.ended_at_trace ?? null,\n      unsupported_claims: (out.judge?.unsupported_claims ?? []).map((c) => c.claim),\n      langsmith_trace_id: traceIds[i],\n      response: out.markdown,\n      output: out.markdown, // shown as the reply when Mira runs from the Chat Trigger\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "9fd85f25-0a0f-453c-8cfb-5313b574b3b0",
+      "name": "Orchestrator: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        330
+      ],
+      "parameters": {
+        "jsCode": "// Orchestrator – classifies the request (intent) and decides whether it is about the project on file.\n// It never answers the request; routing and the insufficiency gate are applied in code afterwards.\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Orchestrator of Mira, a project intelligence assistant for PMs/TPMs at Nexora. You classify each request so it can be routed to the right specialist agent. You never answer the request yourself.\n\nPROJECT ON FILE\nMira has exactly one project on file: \"${kb.project.name}\" – project description, ${kb.timeline.length}-phase timeline, risk register (${kb.risks[0].risk_id}–${kb.risks[kb.risks.length - 1].risk_id}) and task board (${kb.tasks.length} tasks, ${kb.facts.sprints.length} sprints).\n\nFIELDS\n- intent:\n  plan – project plan, roadmap, phases, schedule outline\n  risk – risk assessment, top risks, risk analysis\n  status – status report, progress summary, task counts, sprint report\n  milestone – upcoming milestones or deadlines, blocked / overdue / at-risk tasks, schedule alerts\n  comms – stakeholder update, email, announcement, newsletter\n  out_of_scope – anything else\n- uses_project_on_file: true when the request is about the project on file – it names ABCDE or the AI Adoption Project, or refers to \"the project\", \"the task board\", \"the risk data\", \"the timeline\", \"Sprint N\", \"milestones\" without describing a different project. false when the request supplies its own project or content (e.g. quoted text after \"for:\"), talks about \"a new project\" or \"a 2-week project\", or is otherwise not about the project on file.\n- request_details_sufficient: judge ONLY the request text. true only if it explicitly states the objective AND the scope or deliverables AND a timeline or team size. A one-line idea or a duration alone is not sufficient.\n- sprint: the sprint number if one is explicitly mentioned, else null.\n- window_days: the look-ahead window in days if one is stated (\"next 2 weeks\" → 14, \"this month\" → 30), else null.\n- reason: one sentence explaining the classification.\n\nEXAMPLES\n\"Draft a roadmap for ABCDE's AI rollout\" → plan, uses_project_on_file true\n'Create a plan for: \"Launch a mobile app.\"' → plan, false, request_details_sufficient false\n\"Plan a 6-week data-warehouse migration for finance with 4 engineers, delivering a cloud warehouse and 12 migrated reports\" → plan, false, true\n\"Risk analysis for a new CRM migration\" → risk, false, false\n'Give me a status update: \"All good this week.\"' → status, false, false\n\"What deadlines are coming up in the next 10 days?\" → milestone, true, window_days 10\n\"Write an email to leadership about Sprint 4\" → comms, true, sprint 4\n\"What's the capital of France?\" → out_of_scope, false\n\nOUTPUT\nReturn JSON matching the provided schema.`;\n\nconst RESPONSE_FORMAT = {\n  type: 'json_schema',\n  json_schema: {\n    name: 'orchestrator_decision',\n    strict: true,\n    schema: {\n      type: 'object', additionalProperties: false,\n      required: ['intent', 'uses_project_on_file', 'request_details_sufficient', 'sprint', 'window_days', 'reason'],\n      properties: {\n        intent: { type: 'string', enum: ['plan', 'risk', 'status', 'milestone', 'comms', 'out_of_scope'] },\n        uses_project_on_file: { type: 'boolean' },\n        request_details_sufficient: { type: 'boolean' },\n        sprint: { anyOf: [{ type: 'null' }, { type: 'integer' }] },\n        window_days: { anyOf: [{ type: 'null' }, { type: 'integer' }] },\n        reason: { type: 'string' },\n      },\n    },\n  },\n};\n\nreturn $input.all().map(({ json: req }) => ({\n  json: {\n    ...req,\n    orchestrator_started_at: new Date().toISOString(),\n    openaiRequest: {\n      model: cfg.model,\n      temperature: 0,\n      max_tokens: 400,\n      response_format: RESPONSE_FORMAT,\n      messages: [\n        { role: 'system', content: SYSTEM_PROMPT },\n        { role: 'user', content: `USER REQUEST:\\n${req.query}` },\n      ],\n    },\n  },\n}));\n"
+      }
+    },
+    {
+      "id": "0f9d11ce-0b2b-4272-bc8a-cf28728adf19",
+      "name": "OpenAI: Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        330
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "73ef1f7a-e6f3-4a35-8c07-205bcc13457e",
+      "name": "Orchestrator: Route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        330
+      ],
+      "parameters": {
+        "jsCode": "// Orchestrator – parses the classification and applies the routing rules and insufficiency gate in code:\n//   out_of_scope                         → Fallback\n//   about the project on file            → specialist agent\n//   plan with a self-sufficient request  → Planner\n//   anything else                        → Clarifier (never generate from too little information)\n\nconst requests = $('Orchestrator: Build Prompt').all();\nconst AGENT = { plan: 'planner', risk: 'risk', status: 'status', milestone: 'milestone', comms: 'comms' };\n\nreturn $input.all().map((item, i) => {\n  const { openaiRequest, ...req } = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n\n  let d;\n  try { d = JSON.parse(body.choices?.[0]?.message?.content ?? ''); } catch (e) { d = null; }\n  d = d ?? { intent: 'out_of_scope', uses_project_on_file: false, request_details_sufficient: false, sprint: null, window_days: null, reason: 'Orchestrator output could not be parsed.' };\n\n  let route, gate;\n  if (d.intent === 'out_of_scope') { route = 'fallback'; gate = 'out of scope'; }\n  else if (d.uses_project_on_file) { route = AGENT[d.intent]; gate = 'project data on file'; }\n  else if (d.intent === 'plan' && d.request_details_sufficient) { route = 'planner'; gate = 'request states objective, scope and timeline/team'; }\n  else { route = 'clarifier'; gate = d.intent === 'plan' ? 'request lacks objective, scope or timeline/team' : `no project data for a ${d.intent} request`; }\n\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.orchestrator_started_at));\n  return {\n    json: {\n      ...req,\n      route,\n      intent: d.intent,\n      uses_project_on_file: d.uses_project_on_file,\n      sprint: d.sprint,\n      window_days: d.window_days,\n      decision: { ...d, route, gate },\n      orchestrator_run: {\n        name: 'Orchestrator',\n        run_type: 'llm',\n        start_time: req.orchestrator_started_at,\n        end_time: new Date(Date.parse(req.orchestrator_started_at) + latencyMs).toISOString(),\n        inputs: { messages: openaiRequest.messages },\n        outputs: body,\n        model: openaiRequest.model,\n        temperature: openaiRequest.temperature,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "a050f050-eb42-4bed-bfe4-fd8548ce1417",
+      "name": "Route to Agent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1980,
+        330
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f8f4b1f2-6308-417c-b64d-34dde7494a99",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "clarifier",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Clarifier"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c9bcc232-d9ef-42cc-b6b0-44921913b109",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "planner",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Planner"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9725cc01-a90b-4a8a-8a6c-540f7c81e687",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "risk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Risk Assessor"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "ff1f52db-6c09-450f-bb6b-71cc7faa9dce",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "status",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Status Reporter"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "242a798c-9c43-4710-b0d3-d73b6a78ec8e",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "milestone",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Milestone Tracker"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "96dfcfaa-74e5-4fca-b436-afb36120f78e",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "comms",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Stakeholder Comms"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "832d2746-734e-43fd-8e58-e4654cda992d",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "fallback",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Fallback"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "71ba4ddf-3054-46ee-bd61-b0b0b31369bb",
+      "name": "Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        1320
+      ],
+      "parameters": {
+        "jsCode": "// Fallback – deterministic reply for out-of-scope requests (no LLM call).\n\nconst CAPABILITIES = [\n  '**Project plan** – e.g. \"Generate a project plan for the AI Adoption Project at ABCDE Ltd.\"',\n  '**Risk assessment** – e.g. \"What are the top 3 risks for the ABCDE Ltd project?\"',\n  '**Weekly status report** – e.g. \"Generate a weekly status report for Sprint 3.\"',\n  '**Milestone & deadline alerts** – e.g. \"Which tasks are blocked or at risk of missing their deadline?\"',\n  '**Stakeholder update email** – e.g. \"Draft a stakeholder update for Sprint 2.\"',\n];\n\nreturn $input.all().map(({ json: req }) => {\n  const status = 'OUT_OF_SCOPE';\n  const markdown = [\n    \"## That's outside what I can help with\\n\\nI'm Mira, a project intelligence assistant for the AI Adoption Project at ABCDE Ltd.\",\n    '**I can help with**', CAPABILITIES.map((c) => `- ${c}`).join('\\n'),\n  ].join('\\n\\n');\n  const now = new Date().toISOString();\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: 'Fallback',\n      status,\n      uses_project_data: false,\n      grounding: null,\n      markdown,\n      usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },\n      trace: {\n        name: 'Mira',\n        start_time: now,\n        end_time: now,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'fallback', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: 'Fallback', status },\n        children: [],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "16234b04-84c7-40cf-93ff-d872ccff19dd",
+      "name": "Collect Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2860,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// Joins whichever agent branch ran for this request and nests the Orchestrator call into its trace,\n// so LangSmith shows one trace per request: Orchestrator → specialist → checks.\n\nconst orch = $('Orchestrator: Route').all();\n\nreturn $input.all().map((item, i) => {\n  const out = item.json;\n  const o = orch[i].json;\n  const ou = o.orchestrator_run.outputs?.usage ?? {};\n  const usage = {\n    input_tokens: out.usage.input_tokens + (ou.prompt_tokens ?? 0),\n    output_tokens: out.usage.output_tokens + (ou.completion_tokens ?? 0),\n    total_tokens: out.usage.total_tokens + (ou.total_tokens ?? 0),\n  };\n  return {\n    json: {\n      ...out,\n      route: o.route,\n      intent: o.intent,\n      decision: o.decision,\n      usage,\n      trace: {\n        ...out.trace,\n        start_time: o.orchestrator_started_at,\n        tags: [...new Set([...out.trace.tags, `route:${o.route}`])],\n        metadata: { ...out.trace.metadata, route: o.route, intent: o.intent, gate: o.decision.gate, total_tokens: usage.total_tokens },\n        children: [o.orchestrator_run, ...out.trace.children],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "c88b97b0-379d-4dbb-842b-7bc1669ee981",
+      "name": "LangSmith: Build Trace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// Reusable: converts each item's `trace` descriptor into a LangSmith /runs/batch payload.\n// Descriptor: { name, start_time, end_time, inputs, outputs, tags, metadata,\n//               children: [{ name, run_type, start_time, end_time, inputs, outputs, model?, temperature? }] }\n\nconst cfg = $('Config').first().json;\n\n// UUID v7 (time-ordered), which LangSmith expects for run IDs.\nfunction uuidv7(ms) {\n  const r = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');\n  const ts = ms.toString(16).padStart(12, '0');\n  const variant = '89ab'[Math.floor(Math.random() * 4)];\n  return `${ts.slice(0, 8)}-${ts.slice(8, 12)}-7${r(3)}-${variant}${r(3)}-${r(12)}`;\n}\n\n// LangSmith dotted_order segment: YYYYMMDDTHHMMSSffffffZ + run id\nconst dottedTs = (iso) => iso.replace(/[-:]/g, '').replace('.', '').replace('Z', '000Z');\n\nfunction usageMetadata(outputs) {\n  const u = outputs?.usage ?? {};\n  return { input_tokens: u.prompt_tokens ?? 0, output_tokens: u.completion_tokens ?? 0, total_tokens: u.total_tokens ?? 0 };\n}\n\nreturn $input.all().map(({ json }) => {\n  const t = json.trace;\n  const rootStart = Date.parse(t.start_time);\n  const traceId = uuidv7(rootStart);\n  const rootDotted = dottedTs(t.start_time) + traceId;\n\n  const root = {\n    id: traceId,\n    trace_id: traceId,\n    dotted_order: rootDotted,\n    name: t.name,\n    run_type: 'chain',\n    inputs: t.inputs,\n    outputs: t.outputs,\n    start_time: t.start_time,\n    end_time: t.end_time,\n    session_name: cfg.langsmithProject,\n    tags: t.tags,\n    extra: { metadata: { ...t.metadata, n8n_execution_id: $execution.id } },\n  };\n\n  // Children start strictly after the root (+1 ms each) so dotted_order stays monotonic.\n  const children = (t.children ?? []).map((c, idx) => {\n    const startMs = Math.max(Date.parse(c.start_time), rootStart + idx + 1);\n    const start = new Date(startMs).toISOString();\n    const end = new Date(Math.max(Date.parse(c.end_time), startMs)).toISOString();\n    const id = uuidv7(startMs);\n    const run = {\n      id,\n      trace_id: traceId,\n      parent_run_id: traceId,\n      dotted_order: `${rootDotted}.${dottedTs(start)}${id}`,\n      name: c.name,\n      run_type: c.run_type,\n      inputs: c.inputs,\n      outputs: c.outputs,\n      start_time: start,\n      end_time: end,\n      session_name: cfg.langsmithProject,\n    };\n    if (c.run_type === 'llm') {\n      run.outputs = { ...c.outputs, usage_metadata: usageMetadata(c.outputs) };\n      run.extra = {\n        metadata: { ls_provider: 'openai', ls_model_name: c.model, ls_model_type: 'chat', ls_temperature: c.temperature },\n        invocation_params: { model: c.model, temperature: c.temperature },\n      };\n    }\n    return run;\n  });\n\n  return { json: { test_id: json.test_id, trace_id: traceId, batch: { post: [root, ...children] } } };\n});\n"
+      }
+    },
+    {
+      "id": "7539ba94-9016-485e-9986-4bc818cb23ae",
+      "name": "LangSmith: Log Trace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3300,
+        660
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/runs/batch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.batch) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "dfe5a0a9-73c4-44f9-b035-f815a46144e0",
+      "name": "Next Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// Loop-back: re-emit this request's response with its LangSmith trace ID (the API reply itself is not needed).\nconst traceIds = $('LangSmith: Build Trace').all().map((i) => i.json.trace_id);\nreturn $('Collect Response').all().map((i, k) => {\n  const { trace, ...rest } = i.json;\n  return { json: { ...rest, langsmith_trace_id: traceIds[k], started_at_trace: trace.start_time, ended_at_trace: trace.end_time } };\n});\n"
+      }
+    },
+    {
+      "id": "a26a5cf8-b770-4297-8672-fe8cfde697d0",
+      "name": "LangSmith: Build Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -160
+      ],
+      "parameters": {
+        "jsCode": "// Attaches the evaluation scores to each request's LangSmith trace as feedback (POST /api/v1/feedback,\n// one item per score), so traces can be filtered by score in LangSmith – for chat requests too.\n// Every request gets at least the \"route\" feedback, so the chain always continues to the reply.\n\nconst bool = (b) => (b ? 1 : 0);\n\nreturn $input.all().flatMap(({ json: r }) => {\n  const isTest = r.test_id !== 'chat';\n  const fb = (key, score, comment, value) => ({\n    json: {\n      run_id: r.langsmith_trace_id,\n      trace_id: r.langsmith_trace_id,\n      key,\n      ...(score === undefined ? {} : { score: Math.round(score * 1e4) / 1e4 }), // LangSmith: max 4 decimals\n      ...(value === undefined ? {} : { value }),\n      ...(comment ? { comment } : {}),\n      feedback_source: { type: 'api', metadata: { source: 'mira-n8n', test_id: r.test_id } },\n    },\n  });\n  const items = [fb('route', isTest && r.expected_route ? bool(r.route === r.expected_route) : undefined,\n    isTest && r.expected_route ? `expected ${r.expected_route}` : null, r.route)];\n  if (isTest && r.checks_total) items.push(fb('pass', bool(r.verdict === 'PASS'), r.checks.join('\\n')));\n  if (r.groundedness !== null) items.push(fb('groundedness', r.groundedness));\n  if (r.judge_score !== null && r.judge_score !== undefined) {\n    items.push(fb('judge_score', r.judge_score, r.unsupported_claims.join('\\n') || 'no unsupported claims'));\n    items.push(fb('judge_material_claims', r.judge_material));\n  }\n  return r.langsmith_trace_id ? items : [];\n});\n"
+      }
+    },
+    {
+      "id": "78f8d6a9-ac6b-4a05-9f9e-b3309c3d9e4f",
+      "name": "LangSmith: Post Feedback",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        -160
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/api/v1/feedback",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "604263a9-6443-4244-aa18-85a9c58f4510",
+      "name": "Test Suite?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        -160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "8202bc8a-4f55-4a4d-9132-643477976df6",
+              "leftValue": "={{ $('Results').first().json.test_id }}",
+              "rightValue": "chat",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ce39c9c0-bce6-4e48-b17c-4294d76b249a",
+      "name": "LangSmith: Build Experiment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -260
+      ],
+      "parameters": {
+        "jsCode": "// Turns the test-suite Results into one LangSmith experiment (POST /api/v1/datasets/upload-experiment).\n// The dataset \"mira-baseline\" is created on the first upload; each run of the suite becomes a new\n// experiment on it, so LangSmith's comparison view shows every run side by side.\n// row_id is fixed per test_id, so the same test lines up across experiments.\n\nconst cfg = $('Config').first().json;\nconst ROW_IDS = {\"T1\": \"d29934c9-2072-59a4-91a2-395b1f504e06\", \"T2\": \"212cc215-1651-53d9-9b8a-fe303f09b0e5\", \"T3\": \"8385dfb3-03b3-52ec-809d-d6b26f202331\", \"T4\": \"5bf67dc6-f7d5-53cd-a9c3-3b690a868adf\", \"T5\": \"d46e034e-c25e-53cb-89dd-32373d7e08af\", \"T6\": \"988d2519-13e0-5d89-81db-136a29433dc1\", \"T7\": \"4a743dd9-6727-5603-9ae8-32318b739c21\", \"T8\": \"6a70529d-b27e-513a-bbe5-af5270faa19d\", \"T9\": \"cf810446-0c62-56ca-bece-73b861a3f380\", \"T10\": \"f3cb1a0f-8022-59b6-86e1-897c6904ee8a\", \"T11\": \"270cbd0d-8879-5e61-8543-77ba32996743\", \"T12\": \"a8854d25-2fab-57cb-9dd5-daf1fe046f85\", \"X1\": \"c869f7cd-daa5-50f1-9bb1-08ef5f0b0bec\"};\nconst SUITE = {\"name\": \"mira-complete\", \"judge\": false, \"description\": \"Full Mira workflow\"};\n\nconst results = $('Results').all().map((i) => i.json).filter((r) => r.test_id !== 'chat');\nconst now = new Date().toISOString();\nconst r4 = (x) => Math.round(x * 1e4) / 1e4; // LangSmith: max 4 decimals\nconst mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);\nconst bool = (b) => (b ? 1 : 0);\n\nconst rows = results.map((r) => {\n  const scores = [\n    { key: 'pass', score: bool(r.verdict === 'PASS'), comment: r.checks.join('\\n') },\n    { key: 'checks_passed', score: r.checks_total ? r.checks_passed / r.checks_total : 1, comment: `${r.checks_passed}/${r.checks_total}` },\n    { key: 'route_correct', score: bool(r.route === r.expected_route), comment: `expected ${r.expected_route}, got ${r.route}` },\n    { key: 'tokens', score: r.tokens },\n  ];\n  if (r.groundedness !== null) scores.push({ key: 'groundedness', score: r.groundedness });\n  if (r.judge_score !== null && r.judge_score !== undefined) {\n    scores.push({ key: 'judge_score', score: r.judge_score, comment: r.unsupported_claims.join('\\n') || 'no unsupported claims' });\n    scores.push({ key: 'judge_material_claims', score: r.judge_material });\n  }\n  return {\n    row_id: ROW_IDS[r.test_id],\n    inputs: { test_id: r.test_id, query: r.query },\n    expected_outputs: { route: r.expected_route },\n    actual_outputs: { route: r.route, status: r.status, verdict: r.verdict, response: r.response },\n    evaluation_scores: scores.map((s) => ({ ...s, score: r4(s.score) })),\n    start_time: r.started_at ?? now,\n    end_time: r.ended_at ?? now,\n    run_name: `Mira ${r.test_id}`,\n    run_metadata: { test_id: r.test_id, langsmith_trace_id: r.langsmith_trace_id, model: cfg.model, judge_model: SUITE.judge ? cfg.judgeModel : null },\n  };\n});\n\nconst pick = (key) => rows.flatMap((x) => x.evaluation_scores.filter((s) => s.key === key).map((s) => s.score));\nconst passed = pick('pass').filter((s) => s === 1).length;\nconst summary = [\n  { key: 'pass_rate', score: rows.length ? passed / rows.length : 0, comment: `${passed}/${rows.length} tests passed` },\n  { key: 'route_accuracy', score: mean(pick('route_correct')) ?? 0 },\n  { key: 'avg_groundedness', score: mean(pick('groundedness')) ?? 0 },\n  { key: 'total_tokens', score: pick('tokens').reduce((a, b) => a + b, 0) },\n];\nconst judged = pick('judge_score');\nif (judged.length) summary.push({ key: 'avg_judge_score', score: mean(judged), comment: 'advisory – LLM judge' });\n\nconst starts = rows.map((x) => x.start_time).sort();\nconst ends = rows.map((x) => x.end_time).sort();\nconst stamp = now.slice(0, 16).replace('T', ' ');\n\nreturn [{\n  json: {\n    body: {\n      experiment_name: `${SUITE.name} ${stamp}`,\n      experiment_description: `${SUITE.description} · ${passed}/${rows.length} passed · model ${cfg.model} · as-of ${cfg.asOfDate}`,\n      dataset_name: 'mira-baseline',\n      dataset_description: 'Mira baseline tests T1–T12 (eval_mira_inputs.txt) + X1 out-of-scope case.',\n      experiment_start_time: starts[0] ?? now,\n      experiment_end_time: ends[ends.length - 1] ?? now,\n      experiment_metadata: { workflow: SUITE.name, model: cfg.model, judge_model: SUITE.judge ? cfg.judgeModel : null, n8n_execution_id: $execution.id },\n      summary_experiment_scores: summary.map((s) => ({ ...s, score: r4(s.score) })),\n      results: rows,\n    },\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "9f09e089-67b9-491c-929f-cf9a353cefe1",
+      "name": "LangSmith: Upload Experiment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        -260
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/api/v1/datasets/upload-experiment",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "4feab36e-0bc5-46fa-a070-4074c33545f4",
+      "name": "Chat Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -60
+      ],
+      "parameters": {
+        "jsCode": "// Chat: reply with the response text (the Chat Trigger shows the last node's `output`).\nreturn $('Results').all().map((i) => ({ json: { output: i.json.output } }));\n"
+      }
+    },
+    {
+      "id": "39f044cb-e63b-4b3a-a17d-55907c38d54c",
+      "name": "Clarifier: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Clarifier – asks for the missing information instead of generating output from too little input.\n// The checklist of required information depends on what the PM asked for (intent).\n\nconst cfg = $('Config').first().json;\n\nconst CHECKLIST = {\n  plan: ['project scope', 'goals / objectives', 'key deliverables', 'timeline or deadline', 'team size and roles', 'constraints (budget, technology, stakeholders)'],\n  risk: ['project scope and objectives', 'industry / domain', 'timeline and current phase', 'team size and roles', 'technology and systems involved', 'budget', 'key stakeholders and dependencies'],\n  status: ['task list with statuses', 'task owners', 'due dates', 'sprint or reporting period', 'blockers', 'milestones'],\n  milestone: ['project timeline with milestones and dates', 'task list with statuses', 'due dates', 'task owners', 'look-ahead window'],\n  comms: ['audience', 'topic or reporting period', 'key updates and task progress', 'issues or asks', 'tone and format'],\n};\nconst TASK = { plan: 'a project plan', risk: 'a risk assessment', status: 'a status report', milestone: 'milestone and deadline alerts', comms: 'a stakeholder update' };\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Clarifier inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. The Orchestrator has decided that the request does not contain enough information to produce the requested output. Your job is to explain what is missing and ask the PM precise questions. You never produce the output itself – no plan, phases, risks, statuses, counts or percentages.\n\nINPUT\n- USER REQUEST, the requested output, and a REQUIRED INFORMATION checklist.\n\nRULES\n- reason: one sentence on why the output cannot be produced yet, naming the request.\n- known_information: facts the request explicitly states (may be empty). Do not infer.\n- missing_information: every checklist item that the request does not explicitly provide, using the checklist wording.\n- questions: 4–7 specific questions, one per missing item where possible, that the PM can answer in a sentence.\n\nOUTPUT\nReturn JSON matching the provided schema.`;\n\nconst strings = { type: 'array', items: { type: 'string' } };\nconst RESPONSE_FORMAT = {\n  type: 'json_schema',\n  json_schema: {\n    name: 'clarifier_output',\n    strict: true,\n    schema: {\n      type: 'object', additionalProperties: false,\n      required: ['reason', 'known_information', 'missing_information', 'questions'],\n      properties: { reason: { type: 'string' }, known_information: strings, missing_information: strings, questions: strings },\n    },\n  },\n};\n\nreturn $input.all().map(({ json: req }) => {\n  const intent = CHECKLIST[req.intent] ? req.intent : 'plan';\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\nREQUESTED OUTPUT: ${TASK[intent]}\\n\\n` +\n    `REQUIRED INFORMATION:\\n${CHECKLIST[intent].map((c) => `- ${c}`).join('\\n')}`;\n  return {\n    json: {\n      ...req,\n      agent: 'Clarifier',\n      clarify_for: intent,\n      checklist: CHECKLIST[intent],\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: 800,\n        response_format: RESPONSE_FORMAT,\n        messages: [\n          { role: 'system', content: SYSTEM_PROMPT },\n          { role: 'user', content: userContent },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "7cec1e6e-1bd9-4e69-8958-857435a4465c",
+      "name": "OpenAI: Clarifier",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "f98b47b1-b5dc-445a-8456-2db45c1e5d03",
+      "name": "Clarifier: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Clarifier – renders the clarification request, checks that every required checklist item was\n// either acknowledged as known or asked for, and describes the trace.\n\nconst requests = $('Clarifier: Build Prompt').all();\n\nconst HEADING = {\n  plan: '## More information needed before I can build a plan',\n  risk: '## More information needed before I can assess risks',\n  status: '## No task data available',\n  milestone: '## No timeline or task data to track',\n  comms: '## More information needed before I can draft the update',\n};\nconst LEAD = {\n  plan: '',\n  risk: '',\n  status: \"I can't produce a status report from the request alone – there are no task statuses, owners or due dates to report on.\",\n  milestone: \"I can't flag milestones or deadline risks without a timeline and task due dates.\",\n  comms: '',\n};\nconst FOOTER = {\n  plan: '_No plan was generated, to avoid inventing scope, milestones or dates that you have not provided._',\n  risk: '_No risks were listed, to avoid inventing project-specific risks without project data._',\n  status: '_No task statuses, counts or progress percentages were generated._',\n  milestone: '_No milestones or dates were generated._',\n  comms: '_No email was drafted, to avoid inventing progress or results._',\n};\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None._');\nconst stems = (s) => String(s).toLowerCase().replace(/[^a-z ]+/g, ' ').split(' ').filter((w) => w.length > 3).map((w) => w.slice(0, 5));\n\n// Each checklist item must be covered by the known or missing lists (stem match on its key words).\nfunction coverageCheck(checklist, c) {\n  const covered = new Set(stems([...c.known_information, ...c.missing_information].join(' ')));\n  const uncovered = checklist.filter((item) => !stems(item).some((s) => covered.has(s)));\n  return { checked: checklist.length, covered: checklist.length - uncovered.length, uncovered };\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const intent = req.clarify_for;\n\n  let c;\n  try { c = JSON.parse(body.choices?.[0]?.message?.content ?? ''); } catch (e) { c = null; }\n  c = c ?? { reason: 'The request does not contain enough information.', known_information: [], missing_information: req.checklist, questions: [] };\n  const coverage = coverageCheck(req.checklist, c);\n\n  const markdown = [\n    HEADING[intent],\n    LEAD[intent],\n    c.reason,\n    '**What I have so far**', list(c.known_information),\n    '**What is missing**', list(c.missing_information),\n    '**Please answer these questions**',\n    c.questions.map((q, k) => `${k + 1}. ${q}`).join('\\n'),\n    FOOTER[intent],\n    '---',\n    `Checklist coverage: ${coverage.covered}/${coverage.checked} required items addressed` +\n      (coverage.uncovered.length ? `\\n${coverage.uncovered.map((u) => `- ⚠ not asked: ${u}`).join('\\n')}` : ' ✅'),\n  ].filter(Boolean).join('\\n\\n');\n\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status: 'NEEDS_CLARIFICATION',\n      uses_project_data: false,\n      coverage,\n      grounding: null,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status: 'NEEDS_CLARIFICATION', response: markdown },\n        tags: ['mira', 'clarifier', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, clarify_for: intent, checklist_coverage: coverage.covered / coverage.checked },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Checklist Coverage',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { checklist: req.checklist },\n            outputs: coverage,\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "ed567fa7-37d2-4554-8b82-6b454201f366",
+      "name": "Planner: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// Planner Agent – builds the OpenAI request for each incoming request item.\n// Project data is attached only when the request refers to the ABCDE Ltd project, so the\n// agent cannot borrow ABCDE facts to \"fill in\" a vague request about some other project.\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Planner Agent inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You turn project information into a structured project plan, and you refuse to plan when the information is insufficient.\n\nINPUT\n- USER REQUEST: what the PM asked for.\n- PROJECT DATA (optional): <project_description> and <project_timeline> for a project on file. If PROJECT DATA is absent, the only information you have is the USER REQUEST text.\n\nDECISION – choose exactly one status\n1. PROJECT DATA is present → status \"PLAN\", built only from PROJECT DATA.\n2. PROJECT DATA is absent → judge the USER REQUEST alone. It is sufficient ONLY if it explicitly states ALL of:\n   (a) the objective / goals, (b) the scope or main deliverables, and (c) a timeline or team size.\n   If any of these is missing → status \"NEEDS_CLARIFICATION\". A one-line idea (\"build a chatbot\") or a duration with no content (\"a 2-week project\") is NOT sufficient.\n\nRULES FOR A PLAN (hallucination guardrails)\n- objectives, scope, success_metrics, governance: include only items explicitly stated in the source. Each item's source_quote must be an exact, verbatim phrase copied from the source text. Never add goals, KPIs, technologies, budgets, vendors, or people that are not in the source.\n- phases: copy every phase from <project_timeline> exactly – same number, name, weeks, dates, key activities and milestones/deliverables. Do not add, merge, split, rename or re-date phases.\n- executive_summary: 2–3 sentences using only facts from the source.\n- assumptions: things you had to assume to present the plan (keep minimal).\n- open_questions: information a PM still needs that the source does NOT provide (e.g. budget, team size/named owners, tooling, which departments pilot first). Do not answer them yourself.\n- If the source is internally inconsistent, say so in open_questions.\n\nRULES FOR NEEDS_CLARIFICATION\n- Set plan to null. Do NOT produce phases, milestones, or a draft plan.\n- reason: one sentence on why a plan cannot be produced yet.\n- known_information: what the request does state (may be empty).\n- missing_information: always cover project scope, goals/objectives, key deliverables, timeline, team size/roles, and constraints (budget, technology, stakeholders) – unless explicitly given.\n- questions: 4–7 specific questions the PM can answer to unblock planning.\n\nOUTPUT\nReturn JSON matching the provided schema. Unused branch must be null.`;\n\nconst sourced = {\n  type: 'object', additionalProperties: false, required: ['text', 'source_quote'],\n  properties: { text: { type: 'string' }, source_quote: { type: 'string' } },\n};\nconst strings = { type: 'array', items: { type: 'string' } };\n\nconst RESPONSE_FORMAT = {\n  type: 'json_schema',\n  json_schema: {\n    name: 'planner_output',\n    strict: true,\n    schema: {\n      type: 'object', additionalProperties: false, required: ['status', 'clarification', 'plan'],\n      properties: {\n        status: { type: 'string', enum: ['PLAN', 'NEEDS_CLARIFICATION'] },\n        clarification: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['reason', 'known_information', 'missing_information', 'questions'],\n            properties: { reason: { type: 'string' }, known_information: strings, missing_information: strings, questions: strings },\n          }],\n        },\n        plan: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['project_name', 'executive_summary', 'objectives', 'scope', 'success_metrics', 'governance', 'phases', 'assumptions', 'open_questions'],\n            properties: {\n              project_name: { type: 'string' },\n              executive_summary: { type: 'string' },\n              objectives: { type: 'array', items: sourced },\n              scope: { type: 'array', items: sourced },\n              success_metrics: { type: 'array', items: sourced },\n              governance: { type: 'array', items: sourced },\n              phases: {\n                type: 'array',\n                items: {\n                  type: 'object', additionalProperties: false,\n                  required: ['phase_number', 'name', 'start_week', 'end_week', 'start_date', 'end_date', 'key_activities', 'milestones_deliverables'],\n                  properties: {\n                    phase_number: { type: 'integer' }, name: { type: 'string' },\n                    start_week: { type: 'integer' }, end_week: { type: 'integer' },\n                    start_date: { type: 'string' }, end_date: { type: 'string' },\n                    key_activities: strings, milestones_deliverables: strings,\n                  },\n                },\n              },\n              assumptions: strings,\n              open_questions: strings,\n            },\n          }],\n        },\n      },\n    },\n  },\n};\n\n// The Orchestrator decides this (uses_project_on_file); the regex is the fallback for the standalone step workflows.\nconst refersToProject = (q) => /ABCDE|AI Adoption Project/i.test(q);\n\nfunction projectDataBlock() {\n  const phases = kb.timeline.map((p) => [\n    `Phase ${p.phase}: ${p.phase_name} | Weeks ${p.start_week}-${p.end_week} | ${p.start_date} to ${p.end_date}`,\n    `  Key activities: ${p.key_activities.join('; ')}`,\n    `  Milestones/deliverables: ${p.milestones.join('; ')}`,\n  ].join('\\n')).join('\\n');\n  return `PROJECT DATA – ${kb.project.name}\\n<project_description>\\n${kb.project.description}\\n</project_description>\\n` +\n    `<project_timeline>\\nWeek 1 starts ${kb.facts.project_start_date}.\\n${phases}\\n</project_timeline>`;\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const usesProjectData = req.uses_project_on_file ?? refersToProject(req.query);\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\n` +\n    (usesProjectData ? projectDataBlock() : 'PROJECT DATA: none provided.');\n  const messages = [\n    { role: 'system', content: SYSTEM_PROMPT },\n    { role: 'user', content: userContent },\n  ];\n  return {\n    json: {\n      ...req,\n      agent: 'Planner Agent',\n      uses_project_data: usesProjectData,\n      source_text: usesProjectData ? kb.project.description : req.query,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: Number(cfg.maxTokens),\n        response_format: RESPONSE_FORMAT,\n        messages,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "0dea3b8f-a249-4eb4-9c97-b618ded4b6c2",
+      "name": "OpenAI: Planner Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "2c8c9718-e17e-4cca-a398-503f3632b6c4",
+      "name": "Planner: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        220
+      ],
+      "parameters": {
+        "jsCode": "// Planner Agent – parses the model output, verifies grounding against the source data,\n// renders Markdown for the PM, and describes the LangSmith trace for this request.\n\nconst kb = $('Knowledge Base').first().json;\nconst requests = $('Planner: Build Prompt').all();\n\nconst norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None stated in the source._');\nconst sourcedList = (items) => (items.length\n  ? items.map((x) => `- ${x.text}  \\n  _Source: “${x.source_quote}”_`).join('\\n')\n  : '- _None stated in the source._');\n\n// Every plan item must trace back to the source; phases must match the timeline exactly.\nfunction groundingCheck(plan, req) {\n  const issues = [];\n  let checked = 0, grounded = 0;\n  const source = norm(req.source_text);\n\n  for (const key of ['objectives', 'scope', 'success_metrics', 'governance']) {\n    for (const item of plan[key]) {\n      checked++;\n      if (item.source_quote && source.includes(norm(item.source_quote))) grounded++;\n      else issues.push(`${key}: quote not found in source → “${item.source_quote}”`);\n    }\n  }\n\n  if (req.uses_project_data) {\n    const timeline = new Map(kb.timeline.map((p) => [p.phase, p]));\n    const known = new Set(kb.milestones.map((m) => norm(m.milestone)));\n    if (plan.phases.length !== kb.timeline.length) {\n      issues.push(`phase count ${plan.phases.length} ≠ timeline ${kb.timeline.length}`);\n    }\n    for (const p of plan.phases) {\n      checked++;\n      const t = timeline.get(p.phase_number);\n      const problems = [];\n      if (!t) problems.push('phase not in timeline');\n      else {\n        if (norm(p.name) !== norm(t.phase_name)) problems.push(`name “${p.name}”`);\n        if (p.start_date !== t.start_date || p.end_date !== t.end_date) problems.push(`dates ${p.start_date}→${p.end_date}`);\n        const invented = p.milestones_deliverables.filter((m) => !known.has(norm(m)));\n        if (invented.length) problems.push(`milestones not in timeline: ${invented.join('; ')}`);\n      }\n      if (problems.length) issues.push(`Phase ${p.phase_number}: ${problems.join(', ')}`);\n      else grounded++;\n    }\n  }\n\n  return { checked, grounded, score: checked ? grounded / checked : 1, issues };\n}\n\nfunction renderPlan(plan, req, grounding) {\n  const statusOf = new Map(kb.timeline.map((p) => [p.phase, p.schedule_status]));\n  const rows = plan.phases.map((p) =>\n    `| ${p.phase_number}. ${p.name} | W${p.start_week}–W${p.end_week} | ${p.start_date} → ${p.end_date} | ` +\n    `${p.key_activities.join('; ')} | ${p.milestones_deliverables.join('; ')} | ${req.uses_project_data ? statusOf.get(p.phase_number) ?? '—' : '—'} |`);\n  const sources = req.uses_project_data ? 'project_description.txt, project_timeline.csv' : 'user request';\n  return [\n    `# Project Plan — ${plan.project_name}`,\n    `_Generated by Mira · as of ${kb.facts.as_of_date} · Sources: ${sources}_`,\n    '## Executive summary', plan.executive_summary,\n    '## Objectives', sourcedList(plan.objectives),\n    '## Scope', sourcedList(plan.scope),\n    '## Timeline, milestones & deliverables',\n    ['| Phase | Weeks | Dates | Key activities | Milestones / deliverables | Schedule status |',\n      '|---|---|---|---|---|---|', ...rows].join('\\n'),\n    '## Success metrics', sourcedList(plan.success_metrics),\n    '## Team & governance', sourcedList(plan.governance),\n    '## Assumptions', list(plan.assumptions),\n    '## Open questions for the PM', list(plan.open_questions),\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} items traced to source` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n  ].join('\\n\\n');\n}\n\nfunction renderClarification(c) {\n  return [\n    '## More information needed before I can build a plan',\n    c.reason,\n    '**What I have so far**', list(c.known_information),\n    '**What is missing**', list(c.missing_information),\n    '**Please answer these questions**',\n    c.questions.map((q, i) => `${i + 1}. ${q}`).join('\\n'),\n    '_No plan was generated, to avoid inventing scope, milestones or dates that you have not provided._',\n  ].join('\\n\\n');\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const content = body.choices?.[0]?.message?.content ?? '';\n\n  let output = null, parseError = null;\n  try { output = JSON.parse(content); } catch (e) { parseError = e.message; }\n\n  let markdown, grounding = null;\n  if (!output) {\n    markdown = `⚠ Planner Agent returned unparseable output (${parseError}).\\n\\n${content}`;\n  } else if (output.status === 'PLAN' && output.plan) {\n    grounding = groundingCheck(output.plan, req);\n    markdown = renderPlan(output.plan, req, grounding);\n  } else {\n    markdown = renderClarification(output.clarification ?? { reason: 'Insufficient detail.', known_information: [], missing_information: [], questions: [] });\n  }\n\n  // Model latency from OpenAI's header gives accurate per-call timing even when items run in sequence.\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const status = output?.status ?? 'ERROR';\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: req.uses_project_data,\n      phase_count: output?.plan?.phases?.length ?? 0,\n      grounding,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'planner', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, status, uses_project_data: req.uses_project_data, groundedness: grounding?.score ?? null, as_of_date: kb.facts.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { status, uses_project_data: req.uses_project_data },\n            outputs: grounding ?? { skipped: 'no plan generated' },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "f9b3ff65-00de-4221-8653-7328a43d9016",
+      "name": "Risk Assessor: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        440
+      ],
+      "parameters": {
+        "jsCode": "// Risk Assessor – builds the OpenAI request for each incoming request item.\n// The model only rates and links register risks by ID (one schema key per risk); risk text and\n// mitigations are copied from project_risks.csv by code, so no risk can be invented.\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Risk Assessor inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You assess a project's risks using only its risk register and project data, and you refuse to assess when there is no project data.\n\nINPUT\n- USER REQUEST: what the PM asked for.\n- PROJECT DATA (optional): <project_description>, <schedule> (phases with schedule status), <task_board> (tasks with status and due dates, plus blocked/overdue lists) and <risk_register> (risks R01..Rnn). If PROJECT DATA is absent, the only information you have is the USER REQUEST text.\n\nDECISION – choose exactly one status\n1. PROJECT DATA is absent → status \"NEEDS_CLARIFICATION\". A risk assessment needs a known project; never produce risks from a one-line request.\n2. PROJECT DATA is present and the PM asks for the top / most important / biggest N risks → status \"TOP_RISKS\", requested_count = N (default 3).\n3. PROJECT DATA is present otherwise → status \"ASSESSMENT\", requested_count = number of risks in the register.\n\nRULES FOR AN ASSESSMENT (both TOP_RISKS and ASSESSMENT) – hallucination guardrails\n- summary: 2–3 sentences on the overall risk picture for this project at its current phase. Do not number or rank risks in the summary; ranking is computed separately.\n- risks has one entry per register risk ID. Fill in EVERY entry, also when the PM asks only for the top N – the top N are selected by code from your ratings. Do not create risks that are not in the register.\n- likelihood and impact (High / Medium / Low) must reflect THIS project: its logistics domain, its use cases (demand forecasting, route optimization, inventory management, customer support), the current phase, and live task-board signals. Do not rate everything High.\n- If any related task is Blocked or Overdue, likelihood must be Medium or High – the problem is already showing.\n- priority_rank: your overall order 1..n (1 = most urgent), unique per risk. Use it to break ties between equal ratings.\n- rationale: 1–2 sentences on why this risk matters for this project now. Cite a specific project fact – a use case, goal, phase, or task ID. Never use generic statements such as \"this is common in AI projects\".\n- evidence_quote: choose from the allowed list the project goal, use case or capability this risk threatens most (e.g. \"route optimization\", \"reducing delivery delays by 15%\"). Prefer the most specific phrase.\n- affected_use_cases: the 1–2 logistics use cases this risk would hit HARDEST, so the PM can see where each risk bites (e.g. data-quality risk → demand forecasting, inventory management; legacy-integration risk → route optimization). Do not list every use case for every risk. Use an empty array only if the risk is truly organisation-wide.\n- related_task_ids: task IDs from <task_board> that are signals for this risk (e.g. a blocked security review → security risk). Empty array if none. Never use IDs that are not on the board.\n- exposed_phase: the phase number from <schedule> where this risk is most likely to materialise.\n- owner_role: who on the cross-functional task force should own it.\n- next_step: one full sentence (8–30 words) stating a concrete action that applies the register's mitigation to THIS project – what to do, and on which use case, data, system or task. Do not copy the mitigation text and do not just name a phase. Example for a data risk: \"Run a data-quality audit of historical delivery and inventory records and close the gaps found in T006.\"\n- next_step_before_phase: the phase number by whose start the next step must be done. It must be the current phase or a later one.\n\nRULES FOR NEEDS_CLARIFICATION\n- Set assessment to null. Do NOT list risks, generic or otherwise.\n- reason: one sentence on why risks cannot be assessed yet.\n- known_information: what the request does state (may be empty).\n- missing_information: always cover project scope and objectives, industry/domain, timeline and current phase, team size/roles, technology and systems involved, budget, and key stakeholders/dependencies – unless explicitly given.\n- questions: 4–7 specific questions the PM can answer to unblock the assessment.\n\nOUTPUT\nReturn JSON matching the provided schema. Unused branch must be null.`;\n\nconst riskIds = kb.risks.map((r) => r.risk_id);\nconst taskIds = kb.tasks.map((t) => t.task_id);\nconst phaseNumbers = kb.timeline.map((p) => p.phase);\nconst level = { type: 'string', enum: ['High', 'Medium', 'Low'] };\nconst strings = { type: 'array', items: { type: 'string' } };\n\n// One required key per register risk: strict mode then forces the model to rate all of them.\nconst riskRating = {\n  type: 'object', additionalProperties: false,\n  required: ['likelihood', 'impact', 'priority_rank', 'rationale', 'evidence_quote', 'affected_use_cases',\n    'related_task_ids', 'exposed_phase', 'owner_role', 'next_step', 'next_step_before_phase'],\n  properties: {\n    likelihood: level,\n    impact: level,\n    priority_rank: { type: 'integer' },\n    rationale: { type: 'string' },\n    // Verbatim description phrases extracted by the Knowledge Base – a citation can't be invented.\n    evidence_quote: { type: 'string', enum: kb.project.outcome_phrases },\n    affected_use_cases: { type: 'array', items: { type: 'string', enum: kb.project.use_cases } },\n    related_task_ids: { type: 'array', items: { type: 'string', enum: taskIds } },\n    exposed_phase: { type: 'integer', enum: phaseNumbers },\n    owner_role: { type: 'string', enum: ['Data scientists', 'IT professionals', 'Business stakeholders', 'Cross-functional task force'] },\n    next_step: { type: 'string' },\n    next_step_before_phase: { type: 'integer', enum: phaseNumbers },\n  },\n};\n\nconst RESPONSE_FORMAT = {\n  type: 'json_schema',\n  json_schema: {\n    name: 'risk_output',\n    strict: true,\n    schema: {\n      type: 'object', additionalProperties: false, required: ['status', 'clarification', 'assessment'],\n      properties: {\n        status: { type: 'string', enum: ['ASSESSMENT', 'TOP_RISKS', 'NEEDS_CLARIFICATION'] },\n        clarification: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['reason', 'known_information', 'missing_information', 'questions'],\n            properties: { reason: { type: 'string' }, known_information: strings, missing_information: strings, questions: strings },\n          }],\n        },\n        assessment: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['requested_count', 'summary', 'risks'],\n            properties: {\n              requested_count: { type: 'integer' },\n              summary: { type: 'string' },\n              risks: {\n                type: 'object', additionalProperties: false, required: riskIds,\n                properties: Object.fromEntries(riskIds.map((id) => [id, riskRating])),\n              },\n            },\n          }],\n        },\n      },\n    },\n  },\n};\n\n// The Orchestrator decides this (uses_project_on_file); the regex is the fallback for the standalone step workflows.\nconst refersToProject = (q) => /ABCDE|AI Adoption Project/i.test(q);\n\nfunction projectDataBlock() {\n  const f = kb.facts;\n  const schedule = kb.timeline.map((p) =>\n    `Phase ${p.phase}: ${p.phase_name} | ${p.start_date} to ${p.end_date} | ${p.schedule_status}`).join('\\n');\n  const tasks = kb.tasks.map((t) =>\n    `${t.task_id} | ${t.task_name} | ${t.status} | ${t.priority} | ${t.sprint} | due ${t.due_date}`).join('\\n');\n  const listIds = (ts) => (ts.length ? ts.map((t) => `${t.task_id} ${t.task_name}`).join('; ') : 'none');\n  const register = kb.risks.map((r) =>\n    `${r.risk_id} | ${r.category} | ${r.risk_challenge} | Impact: ${r.impact} | Mitigation: ${r.mitigation_strategy}`).join('\\n');\n  return `PROJECT DATA – ${kb.project.name}\\n` +\n    `<project_description>\\n${kb.project.description}\\n</project_description>\\n` +\n    `<schedule>\\nAs of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}); current phase: ${f.current_phase}.\\n${schedule}\\n</schedule>\\n` +\n    `<task_board>\\nTask | Name | Status | Priority | Sprint | Due\\n${tasks}\\n` +\n    `Blocked: ${listIds(f.blocked_tasks)}\\nOverdue: ${listIds(f.overdue_tasks)}\\n</task_board>\\n` +\n    `<risk_register>\\n${register}\\n</risk_register>`;\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const usesProjectData = req.uses_project_on_file ?? refersToProject(req.query);\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\n` +\n    (usesProjectData ? projectDataBlock() : 'PROJECT DATA: none provided.');\n  const messages = [\n    { role: 'system', content: SYSTEM_PROMPT },\n    { role: 'user', content: userContent },\n  ];\n  return {\n    json: {\n      ...req,\n      agent: 'Risk Assessor',\n      uses_project_data: usesProjectData,\n      source_text: usesProjectData ? kb.project.description : req.query,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: Number(cfg.maxTokens),\n        response_format: RESPONSE_FORMAT,\n        messages,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "57b1c596-1571-4604-b8ae-cb9b05a23bf2",
+      "name": "OpenAI: Risk Assessor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "991f4523-bcc5-446a-b63b-0af4bf99685e",
+      "name": "Risk Assessor: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        440
+      ],
+      "parameters": {
+        "jsCode": "// Risk Assessor – parses the model output, verifies it against the risk register and task board,\n// ranks risks in code (likelihood × impact, model rank as tie-break), renders Markdown,\n// and describes the LangSmith trace for this request.\n\nconst kb = $('Knowledge Base').first().json;\nconst requests = $('Risk Assessor: Build Prompt').all();\n\nconst SCORE = { High: 3, Medium: 2, Low: 1 };\nconst register = new Map(kb.risks.map((r) => [r.risk_id, r]));\nconst tasksById = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst phases = new Map(kb.timeline.map((p) => [p.phase, p]));\n\nconst norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();\n\n// Quote must appear as a contiguous word sequence in the source, tolerating inflection only\n// (\"reduce\" ≈ \"reducing\"): each word is compared on its first 5 letters.\nconst stems = (s) => norm(s).split(' ').filter(Boolean).map((w) => w.slice(0, 5));\nfunction quoteInSource(quote, source) {\n  const q = stems(quote), src = stems(source);\n  if (!q.length) return false;\n  for (let i = 0; i + q.length <= src.length; i++) {\n    if (q.every((w, j) => src[i + j] === w)) return true;\n  }\n  return false;\n}\nconst cell = (s) => String(s ?? '').replace(/\\|/g, '/').replace(/\\n/g, ' ');\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None._');\n\n// Every assessed risk must exist in the register exactly once, cite the description verbatim,\n// and link only to real tasks and phases.\nfunction groundingCheck(a, req) {\n  const issues = [];\n  let checked = 0, grounded = 0;\n  const seen = new Set();\n\n  for (const r of a.risks) {\n    checked++;\n    const problems = [];\n    if (!register.has(r.risk_id)) problems.push('not in register');\n    if (seen.has(r.risk_id)) problems.push('duplicate');\n    seen.add(r.risk_id);\n    if (!quoteInSource(r.evidence_quote, req.source_text)) problems.push(`quote not in description → “${r.evidence_quote}”`);\n    const unknownTasks = r.related_task_ids.filter((id) => !tasksById.has(id));\n    if (unknownTasks.length) problems.push(`unknown tasks ${unknownTasks.join(', ')}`);\n    if (!phases.has(r.exposed_phase)) problems.push(`unknown phase ${r.exposed_phase}`);\n    if (problems.length) issues.push(`${r.risk_id}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  const missing = kb.risks.map((r) => r.risk_id).filter((id) => !seen.has(id));\n  if (missing.length) issues.push(`register risks not assessed: ${missing.join(', ')}`);\n\n  return { checked, grounded, score: checked ? grounded / checked : 1, issues };\n}\n\n// Review checks: ratings must agree with the task board (a blocked or overdue linked task means the\n// risk is already showing); next steps must be a real action, not the register text or a bare phase\n// reference; and their deadline must not already be in the past.\nconst overdueIds = new Set(kb.facts.overdue_tasks.map((t) => t.task_id));\nconst currentPhase = kb.timeline.find((p) => p.schedule_status === 'Current')?.phase ?? 1;\nconst phaseWords = new Set(kb.timeline.flatMap((p) => norm(p.phase_name).split(' ')).concat(['before', 'by', 'phase', 'start', 'of', 'the']));\nfunction reviewCheck(risks) {\n  const allCases = kb.project.use_cases.length;\n  const undifferentiated = risks.filter((r) => r.affected_use_cases.length >= allCases).length;\n  const domain = !risks.some((r) => r.affected_use_cases.length) ? ['no risk is tied to a logistics use case']\n    : undifferentiated > risks.length / 2 ? [`${undifferentiated}/${risks.length} risks list every use case – not differentiated`] : [];\n  return domain.concat(risks.flatMap((r) => {\n    const issues = [];\n    const live = r.related_task_ids.filter((id) => tasksById.get(id)?.status === 'Blocked' || overdueIds.has(id));\n    if (r.likelihood === 'Low' && live.length) issues.push(`${r.risk_id}: likelihood Low but linked task ${live.join(', ')} is blocked/overdue`);\n    const words = norm(r.next_step).split(' ').filter(Boolean);\n    const content = words.filter((w) => !phaseWords.has(w) && !/^\\d+$/.test(w));\n    const mitigation = new Set(norm(register.get(r.risk_id)?.mitigation_strategy).split(' '));\n    const copied = words.length && words.filter((w) => mitigation.has(w)).length / words.length > 0.8;\n    if (content.length < 5) issues.push(`${r.risk_id}: next step is not an action (“${r.next_step}”)`);\n    else if (copied) issues.push(`${r.risk_id}: next step copies the register mitigation`);\n    if (r.next_step_before_phase < currentPhase) issues.push(`${r.risk_id}: next step deadline Phase ${r.next_step_before_phase} has already passed`);\n    return issues;\n  }));\n}\n\nconst useCases = (r) => (r.affected_use_cases.length ? r.affected_use_cases.join(', ') : 'Organisation-wide');\nconst nextStep = (r) => `${r.next_step} _(before ${phaseLabel(r.next_step_before_phase)})_`;\n\n// Deterministic ranking: score desc, then impact, then the model's priority_rank.\nfunction rank(risks) {\n  return [...risks]\n    .map((r) => ({ ...r, score: SCORE[r.likelihood] * SCORE[r.impact] }))\n    .sort((x, y) => y.score - x.score || SCORE[y.impact] - SCORE[x.impact] || x.priority_rank - y.priority_rank)\n    .map((r, i) => ({ ...r, rank: i + 1 }));\n}\n\nconst signals = (r) => (r.related_task_ids.length\n  ? r.related_task_ids.map((id) => `${id} ${tasksById.get(id)?.task_name ?? '?'} (${tasksById.get(id)?.status ?? '?'})`).join('; ')\n  : '—');\nconst phaseLabel = (n) => (phases.has(n) ? `Phase ${n}: ${phases.get(n).phase_name}` : `Phase ${n}`);\n\nfunction renderAssessment(status, a, ranked, grounding, review) {\n  const top = status === 'TOP_RISKS';\n  const shown = top ? ranked.slice(0, Math.max(1, a.requested_count)) : ranked;\n  const f = kb.facts;\n  const header = [\n    `# ${top ? `Top ${shown.length} Risks` : 'Risk Assessment'} — ${kb.project.name}`,\n    `_Generated by Mira · as of ${f.as_of_date} (week ${f.current_week}, ${f.current_phase}) · Sources: project_risks.csv, project_description.txt, sample_task_board.csv, project_timeline.csv_`,\n    '## Summary', a.summary,\n  ];\n\n  const body = top\n    ? shown.map((r) => {\n      const reg = register.get(r.risk_id);\n      return [\n        `### ${r.rank}. ${r.risk_id} — ${reg.category}: ${reg.risk_challenge}`,\n        `**Likelihood:** ${r.likelihood} · **Impact:** ${r.impact} · **Score:** ${r.score}/9 · **Most exposed:** ${phaseLabel(r.exposed_phase)} · **Owner:** ${r.owner_role}`,\n        `**Why it matters now:** ${r.rationale}`,\n        `_Threatens: “${r.evidence_quote}” · Use cases affected: ${useCases(r)}_`,\n        `**Impact if it happens (register):** ${reg.impact}`,\n        `**Live signals on the task board:** ${signals(r)}`,\n        `**Mitigation (register):** ${reg.mitigation_strategy}`,\n        `**Recommended next step:** ${nextStep(r)}`,\n      ].join('\\n\\n');\n    })\n    : [\n      '## Risk register (ranked by likelihood × impact)',\n      ['| # | ID | Category | Risk | L | I | Score | Use cases affected | Most exposed | Live signals | Owner |',\n        '|---|---|---|---|---|---|---|---|---|---|---|',\n        ...shown.map((r) => {\n          const reg = register.get(r.risk_id);\n          return `| ${r.rank} | ${r.risk_id} | ${cell(reg.category)} | ${cell(reg.risk_challenge)} | ${r.likelihood} | ${r.impact} | ${r.score} | ${cell(useCases(r))} | ${cell(phaseLabel(r.exposed_phase))} | ${cell(signals(r))} | ${r.owner_role} |`;\n        })].join('\\n'),\n      '## Why each risk matters & what to do',\n      shown.map((r) => {\n        const reg = register.get(r.risk_id);\n        return `**${r.rank}. ${r.risk_id} ${reg.category}** — ${r.rationale}  \\n` +\n          `_Threatens: “${r.evidence_quote}”_  \\n` +\n          `Impact (register): ${reg.impact}  \\n` +\n          `Mitigation (register): ${reg.mitigation_strategy}  \\n` +\n          `Next step: ${nextStep(r)}`;\n      }).join('\\n\\n'),\n    ];\n\n  return [\n    ...header,\n    ...body,\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} risks traced to the register and source` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n    `Review checks (task-board consistency, actionable next steps):` +\n      (review.length ? `\\n${review.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n  ].join('\\n\\n');\n}\n\nfunction renderClarification(c) {\n  return [\n    '## More information needed before I can assess risks',\n    c.reason,\n    '**What I have so far**', list(c.known_information),\n    '**What is missing**', list(c.missing_information),\n    '**Please answer these questions**',\n    c.questions.map((q, i) => `${i + 1}. ${q}`).join('\\n'),\n    '_No risks were listed, to avoid inventing project-specific risks without project data._',\n  ].join('\\n\\n');\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const content = body.choices?.[0]?.message?.content ?? '';\n\n  let output = null, parseError = null;\n  try { output = JSON.parse(content); } catch (e) { parseError = e.message; }\n\n  let markdown, grounding = null, review = [], ranked = [], shownCount = 0;\n  const status = output?.status ?? 'ERROR';\n  if (!output) {\n    markdown = `⚠ Risk Assessor returned unparseable output (${parseError}).\\n\\n${content}`;\n  } else if (status !== 'NEEDS_CLARIFICATION' && output.assessment) {\n    // Schema returns { R01: {...}, R02: {...} }; flatten to a list keyed by risk_id.\n    const a = { ...output.assessment, risks: Object.entries(output.assessment.risks).map(([risk_id, r]) => ({ risk_id, ...r })) };\n    grounding = groundingCheck(a, req);\n    review = reviewCheck(a.risks);\n    ranked = rank(a.risks);\n    shownCount = status === 'TOP_RISKS' ? Math.min(ranked.length, Math.max(1, a.requested_count)) : ranked.length;\n    markdown = renderAssessment(status, a, ranked, grounding, review);\n  } else {\n    markdown = renderClarification(output.clarification ?? { reason: 'Insufficient detail.', known_information: [], missing_information: [], questions: [] });\n  }\n\n  // Model latency from OpenAI's header gives accurate per-call timing even when items run in sequence.\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const topRisks = ranked.slice(0, shownCount).map((r) => `${r.risk_id} (${r.likelihood}/${r.impact})`);\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: req.uses_project_data,\n      risk_count: shownCount,\n      assessed_count: ranked.length,\n      top_risks: topRisks,\n      grounding,\n      review,\n      review_issue_count: review.length,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'risk', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, status, uses_project_data: req.uses_project_data, groundedness: grounding?.score ?? null, as_of_date: kb.facts.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { status, uses_project_data: req.uses_project_data },\n            outputs: grounding ? { ...grounding, review, ranking: ranked.map((r) => `${r.rank}. ${r.risk_id} score ${r.score}`) } : { skipped: 'no assessment generated' },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "f54c266f-90dc-4e24-8ab1-e4a879254ddf",
+      "name": "Status Reporter: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// Status Reporter – resolves the report scope (a sprint or the whole project) in code, computes\n// every number for that scope, and builds the OpenAI request. The model only writes the narrative\n// and may cite only task IDs that are in scope (enum-constrained per request).\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\nconst f = kb.facts;\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Status Reporter inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You write the narrative of a weekly status report from task-board facts that have already been computed for you, and you refuse to report when there is no task data.\n\nINPUT\n- USER REQUEST: what the PM asked for.\n- TASK DATA (optional): <scope> (what the report covers), <facts> (counts and completion already computed), <tasks_in_scope>, and <context> (carried-over, blocked and due-soon tasks, upcoming milestones). If TASK DATA is absent, the only information you have is the USER REQUEST text.\n\nDECISION – choose exactly one status\n1. TASK DATA is absent → status \"NO_DATA\". A sentence like \"things are going fine\" is not task data. Never produce statuses, counts, percentages or task names.\n2. TASK DATA is present → status \"REPORT\".\n\nRULES FOR A REPORT (hallucination guardrails)\n- The counts, completion percentage, task tables and RAG status are rendered by code. Do not restate a number unless it appears in <facts>; never estimate or round progress.\n- Only call a task overdue, blocked or due soon if <facts> or its Flags say so. A Done task is never overdue. Never generalise (\"all tasks are overdue\") – name the tasks.\n- The only milestones are those listed under \"Upcoming milestones\" in <context>. A task is not a milestone – never invent one (e.g. \"security review milestone\").\n- Refer to tasks by ID and name exactly as given (e.g. \"T007 Shortlist AI use cases\"). Never mention a task that is not in TASK DATA.\n- headline: one sentence capturing the state of the scope (e.g. what is on track and what needs attention).\n- summary: 2–3 sentences for a PM audience.\n- highlights: progress worth reporting (done or advancing tasks). Each item cites the task_ids it is about.\n- concerns: overdue, blocked or due-soon work and why it matters (link to upcoming milestones where relevant). Each item cites task_ids.\n- next_week_focus: the 2–4 most important things to move next, each citing task_ids.\n- decisions_needed: escalations or decisions the PM should raise (e.g. unblocking a blocked task). Empty array if none.\n\nRULES FOR NO_DATA\n- Set report to null.\n- message: one sentence stating that no task data is available, so no status can be reported.\n- what_to_provide: the information needed – e.g. task list with statuses, owners, due dates, sprint or reporting period, blockers, and milestones.\n\nOUTPUT\nReturn JSON matching the provided schema. Unused branch must be null.`;\n\n// The Orchestrator decides this (uses_project_on_file); the regex is the fallback for the standalone step workflows.\nconst usesTaskBoard = (q) => /task board|task data|tasks|sprint\\s*\\d|project status|ABCDE|AI Adoption/i.test(q);\n\nconst sprintNo = (s) => Number(String(s).replace(/\\D/g, ''));\nfunction resolveScope(q, sprint) {\n  if (sprint) return { type: 'sprint', sprint: `Sprint ${sprint}` };\n  const m = q.match(/sprint\\s*(\\d+)/i);\n  if (m) return { type: 'sprint', sprint: `Sprint ${m[1]}` };\n  if (/this sprint|current sprint|weekly/i.test(q)) return { type: 'sprint', sprint: f.current_sprint };\n  return { type: 'project', sprint: null };\n}\n\nconst counts = (ts) => Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length]));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\nconst line = (t) => `${t.task_id} | ${t.task_name} | ${t.status} | ${t.assignee} | ${t.priority} | ${t.sprint} | due ${t.due_date} (${t.days_until_due >= 0 ? `in ${t.days_until_due}d` : `${-t.days_until_due}d late`})${overdueIds.has(t.task_id) ? ' | OVERDUE' : ''} | ${t.description}`;\n\n// Every number the report may contain is computed here.\nfunction buildScope(scope) {\n  const inScope = scope.type === 'sprint' ? kb.tasks.filter((t) => t.sprint === scope.sprint) : kb.tasks;\n  const c = counts(inScope);\n  const carriedOver = scope.type === 'sprint'\n    ? kb.tasks.filter((t) => t.status !== 'Done' && sprintNo(t.sprint) < sprintNo(scope.sprint)) : [];\n  const ids = new Set(inScope.map((t) => t.task_id));\n  const outside = (ts) => ts.filter((t) => !ids.has(t.task_id));\n  const context = {\n    carried_over: carriedOver,\n    blocked_elsewhere: outside(kb.tasks.filter((t) => t.status === 'Blocked')),\n    due_soon_elsewhere: outside(kb.tasks.filter((t) => f.due_soon_tasks.some((d) => d.task_id === t.task_id))),\n  };\n  const allowed = [...new Set([...inScope, ...context.carried_over, ...context.blocked_elsewhere, ...context.due_soon_elsewhere].map((t) => t.task_id))];\n  const flagged = (pred) => inScope.filter(pred).map((t) => t.task_id);\n  return {\n    label: scope.type === 'sprint' ? scope.sprint : 'Whole project',\n    type: scope.type,\n    sprint: scope.sprint,\n    task_ids: inScope.map((t) => t.task_id),\n    status_counts: c,\n    total: inScope.length,\n    completion_pct: inScope.length ? Math.round((c.Done / inScope.length) * 100) : 0,\n    overdue_ids: flagged((t) => overdueIds.has(t.task_id)),\n    blocked_ids: flagged((t) => t.status === 'Blocked'),\n    due_soon_ids: flagged((t) => f.due_soon_tasks.some((d) => d.task_id === t.task_id)),\n    context_ids: {\n      carried_over: context.carried_over.map((t) => t.task_id),\n      blocked_elsewhere: context.blocked_elsewhere.map((t) => t.task_id),\n      due_soon_elsewhere: context.due_soon_elsewhere.map((t) => t.task_id),\n    },\n    allowed_task_ids: allowed,\n    found: inScope.length > 0,\n  };\n}\n\nconst flags = (ids) => (ids.length ? `${ids.length} (${ids.join(', ')})` : '0');\n\nfunction taskDataBlock(s) {\n  const byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\n  const rows = (ids) => (ids.length ? ids.map((id) => line(byId.get(id))).join('\\n') : 'none');\n  // A milestone's linked tasks are those due inside its phase (same rule as the Milestone Tracker),\n  // so any task→milestone dependency the narrative states is backed by data.\n  const phaseOf = new Map(kb.timeline.map((p) => [p.phase, p]));\n  const linked = (m) => kb.tasks.filter((t) => t.due_date >= phaseOf.get(m.phase).start_date && t.due_date <= phaseOf.get(m.phase).end_date)\n    .map((t) => `${t.task_id} ${t.status}`).join(', ') || 'none';\n  const ms = f.upcoming_milestones.map((m) => `\\n- ${m.milestone} (Phase ${m.phase}, due ${m.due_date}; linked tasks: ${linked(m)})`).join('') || ' none';\n  return `TASK DATA – ${kb.project.name}\\n` +\n    `<scope>\\n${s.label} · as of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}, ${f.current_phase}; current sprint ${f.current_sprint})\\n</scope>\\n` +\n    `<facts>\\nTasks in scope: ${s.total}\\n${STATUSES.map((st) => `${st}: ${s.status_counts[st]}`).join('\\n')}\\nCompletion: ${s.completion_pct}%\\n` +\n    `Overdue in scope: ${flags(s.overdue_ids)}\\nBlocked in scope: ${flags(s.blocked_ids)}\\n` +\n    `Due within ${cfg.dueSoonDays} days in scope: ${flags(s.due_soon_ids)}\\n</facts>\\n` +\n    `<tasks_in_scope>\\nTask | Name | Status | Assignee | Priority | Sprint | Due | Flags | Description\\n${rows(s.task_ids)}\\n</tasks_in_scope>\\n` +\n    `<context>\\nCarried over from earlier sprints (not done): \\n${rows(s.context_ids.carried_over)}\\n` +\n    `Blocked outside scope: \\n${rows(s.context_ids.blocked_elsewhere)}\\n` +\n    `Due within ${cfg.dueSoonDays} days outside scope: \\n${rows(s.context_ids.due_soon_elsewhere)}\\n` +\n    `Upcoming milestones (${f.upcoming_window}) – the ONLY milestones; use their exact names:${ms}\\n</context>`;\n}\n\nfunction responseFormat(allowedIds) {\n  const strings = { type: 'array', items: { type: 'string' } };\n  const cited = {\n    type: 'array',\n    items: {\n      type: 'object', additionalProperties: false, required: ['text', 'task_ids'],\n      properties: { text: { type: 'string' }, task_ids: { type: 'array', items: { type: 'string', enum: allowedIds } } },\n    },\n  };\n  return {\n    type: 'json_schema',\n    json_schema: {\n      name: 'status_output',\n      strict: true,\n      schema: {\n        type: 'object', additionalProperties: false, required: ['status', 'no_data', 'report'],\n        properties: {\n          status: { type: 'string', enum: ['REPORT', 'NO_DATA'] },\n          no_data: {\n            anyOf: [{ type: 'null' }, {\n              type: 'object', additionalProperties: false, required: ['message', 'what_to_provide'],\n              properties: { message: { type: 'string' }, what_to_provide: strings },\n            }],\n          },\n          report: {\n            anyOf: [{ type: 'null' }, {\n              type: 'object', additionalProperties: false,\n              required: ['headline', 'summary', 'highlights', 'concerns', 'next_week_focus', 'decisions_needed'],\n              properties: {\n                headline: { type: 'string' }, summary: { type: 'string' },\n                highlights: cited, concerns: cited, next_week_focus: cited, decisions_needed: cited,\n              },\n            }],\n          },\n        },\n      },\n    },\n  };\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const scope = (req.uses_project_on_file ?? usesTaskBoard(req.query)) ? buildScope(resolveScope(req.query, req.sprint)) : null;\n  const hasData = Boolean(scope?.found);\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\n` +\n    (hasData ? taskDataBlock(scope) : 'TASK DATA: none provided.');\n  const messages = [\n    { role: 'system', content: SYSTEM_PROMPT },\n    { role: 'user', content: userContent },\n  ];\n  return {\n    json: {\n      ...req,\n      agent: 'Status Reporter',\n      uses_project_data: hasData,\n      scope,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: Number(cfg.maxTokens),\n        response_format: responseFormat(hasData ? scope.allowed_task_ids : kb.tasks.map((t) => t.task_id)),\n        messages,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "b2ca6bde-8a44-441c-ba37-5d89771c1eb4",
+      "name": "OpenAI: Status Reporter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        660
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "44d00aec-a424-43ba-9389-6c0bed01e8d9",
+      "name": "Status Reporter: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        660
+      ],
+      "parameters": {
+        "jsCode": "// Status Reporter – parses the model narrative, verifies every task ID and number in it against\n// the computed facts, renders the report (counts, tables and RAG come from code), and describes\n// the LangSmith trace for this request.\n\nconst kb = $('Knowledge Base').first().json;\nconst cfg = $('Config').first().json;\nconst requests = $('Status Reporter: Build Prompt').all();\nconst f = kb.facts;\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\nconst byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\nconst cell = (s) => String(s ?? '').replace(/\\|/g, '/').replace(/\\n/g, ' ');\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None._');\nconst timing = (t) => (t.status === 'Done' ? 'Done'\n  : t.status === 'Blocked' ? `⛔ Blocked · due in ${t.days_until_due}d`\n  : t.days_until_due < 0 ? `⚠ ${-t.days_until_due}d overdue` : t.days_until_due === 0 ? 'Due today' : `Due in ${t.days_until_due}d`);\n\n// RAG from fixed rules, so the overall status never depends on the model's tone.\nfunction rag(scope) {\n  const watched = [...scope.task_ids, ...scope.context_ids.carried_over].map((id) => byId.get(id));\n  const overdue = watched.filter((t) => overdueIds.has(t.task_id));\n  const blocked = watched.filter((t) => t.status === 'Blocked');\n  const reasons = [];\n  let level = 'Green';\n  const lateHigh = overdue.filter((t) => t.priority === 'High' && -t.days_until_due > 7);\n  const blockedSoon = blocked.filter((t) => t.days_until_due <= Number(cfg.dueSoonDays));\n  if (lateHigh.length || blockedSoon.length) {\n    level = 'Red';\n    lateHigh.forEach((t) => reasons.push(`${t.task_id} is high priority and more than 7 days overdue`));\n    blockedSoon.forEach((t) => reasons.push(`${t.task_id} is blocked and due within ${cfg.dueSoonDays} days`));\n  } else if (overdue.length || blocked.length) {\n    level = 'Amber';\n    overdue.forEach((t) => reasons.push(`${t.task_id} ${t.task_name} is ${-t.days_until_due}d overdue`));\n    blocked.forEach((t) => reasons.push(`${t.task_id} ${t.task_name} is blocked (due ${t.due_date})`));\n  } else reasons.push('no overdue or blocked tasks');\n  return { level, reasons };\n}\nconst RAG_ICON = { Green: '🟢', Amber: '🟠', Red: '🔴' };\n\n// Numbers the narrative may use: computed counts/percentages, task timings and numbers that\n// appear in the source task text (e.g. KPIs \"15%\", \"3 distribution centers\").\nfunction allowedNumbers(scope) {\n  const nums = new Set([scope.total, f.total_tasks, f.current_week, f.total_weeks,\n    ...Object.values(scope.status_counts), ...Object.values(f.status_counts),\n    scope.context_ids.carried_over.length, scope.context_ids.blocked_elsewhere.length,\n    scope.context_ids.due_soon_elsewhere.length, f.upcoming_milestones.length,\n    scope.overdue_ids.length, scope.blocked_ids.length, scope.due_soon_ids.length,\n    f.overdue_tasks.length, f.blocked_tasks.length, f.due_soon_tasks.length,\n    Number(cfg.dueSoonDays), Number(cfg.upcomingWindowDays)]);\n  const pcts = new Set([scope.completion_pct, f.completion_pct]);\n  for (const id of scope.allowed_task_ids) {\n    const t = byId.get(id);\n    nums.add(Math.abs(t.days_until_due));\n    for (const m of `${t.task_name} ${t.description}`.matchAll(/(\\d+)(%?)/g)) (m[2] ? pcts : nums).add(Number(m[1]));\n  }\n  for (const m of kb.project.description.matchAll(/(\\d+)%/g)) pcts.add(Number(m[1]));\n  const dates = new Set([f.as_of_date, ...scope.allowed_task_ids.map((id) => byId.get(id).due_date),\n    ...f.upcoming_milestones.map((m) => m.due_date)]);\n  return { nums, pcts, dates };\n}\n\n// Dates in the narrative (\"2026-04-26\", \"April 26, 2026\", \"26 April\") must be real dates from the data.\nconst MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];\nconst MONTH = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\\\.?';\nconst DATE_PATTERNS = [\n  [/\\b(\\d{4})-(\\d{2})-(\\d{2})\\b/g, (m) => [m[1], m[2], m[3]]],\n  [new RegExp(`\\\\b${MONTH}\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[1].toLowerCase()) + 1, m[2]]],\n  [new RegExp(`\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?\\\\s+${MONTH}(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[2].toLowerCase()) + 1, m[1]]],\n];\nfunction extractDates(text) {\n  const found = [];\n  let rest = text;\n  for (const [re, parts] of DATE_PATTERNS) {\n    rest = rest.replace(re, (...m) => {\n      const [y, mo, d] = parts(m);\n      found.push({ raw: m[0], iso: `${y ?? f.as_of_date.slice(0, 4)}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` });\n      return ' ';\n    });\n  }\n  return { found, rest };\n}\n\n// \"X milestone\" phrases must name a real milestone: the word right before \"milestone\" must occur in a\n// milestone name, or be generic (\"upcoming milestones\", \"the Phase 2 milestones\").\nconst milestoneWords = new Set(kb.milestones.flatMap((m) => m.milestone.toLowerCase().split(/[^a-z0-9]+/)));\nconst GENERIC = new Set(['the', 'a', 'an', 'these', 'those', 'both', 'two', 'its', 'their', 'our', 'upcoming', 'next', 'key',\n  'current', 'phase', 'project', 'related', 'linked', 'this', 'that', 'any', 'other', 'and', 'of', 'for', 'to', 'two', 'all']);\nfunction inventedMilestones(text) {\n  return [...text.matchAll(/((?:[A-Za-z0-9'-]+\\s+){1,3})milestones?\\b/gi)]\n    .filter((m) => {\n      const head = m[1].toLowerCase().trim().split(/\\s+/).pop().replace(/'s$/, '');\n      return !GENERIC.has(head) && !milestoneWords.has(head) && !/^\\d+$/.test(head);\n    })\n    .map((m) => m[0].trim());\n}\n\nfunction groundingCheck(report, scope) {\n  const allowed = new Set(scope.allowed_task_ids);\n  const { nums, pcts, dates } = allowedNumbers(scope);\n  const items = [\n    { where: 'headline', text: report.headline, task_ids: [] },\n    { where: 'summary', text: report.summary, task_ids: [] },\n    ...['highlights', 'concerns', 'next_week_focus', 'decisions_needed']\n      .flatMap((k) => report[k].map((x, i) => ({ where: `${k}[${i + 1}]`, ...x }))),\n  ];\n  const issues = [];\n  let grounded = 0;\n  for (const it of items) {\n    const problems = [];\n    const ids = [...new Set([...(it.text.match(/\\bT\\d{3}\\b/g) ?? []), ...it.task_ids])];\n    const outOfScope = ids.filter((id) => !allowed.has(id));\n    if (outOfScope.length) problems.push(`task not in scope: ${outOfScope.join(', ')}`);\n    inventedMilestones(it.text).forEach((m) => problems.push(`no such milestone: “${m}”`));\n    const { found, rest } = extractDates(it.text);\n    found.filter((d) => !dates.has(d.iso)).forEach((d) => problems.push(`unsupported date “${d.raw}”`));\n    const stripped = rest.replace(/\\bT\\d{3}\\b/g, ' ').replace(/\\b(sprint|phase|week|q)\\s*\\d+/gi, ' ');\n    for (const m of stripped.matchAll(/(\\d+(?:\\.\\d+)?)\\s*(%|percent)?/g)) {\n      const n = Number(m[1]);\n      if (m[2] ? !pcts.has(n) : !nums.has(n)) problems.push(`unsupported ${m[2] ? 'percentage' : 'number'} “${m[0].trim()}”`);\n    }\n    if (problems.length) issues.push(`${it.where}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  return { checked: items.length, grounded, score: items.length ? grounded / items.length : 1, issues };\n}\n\nfunction taskTable(ids) {\n  return ['| ID | Task | Owner | Priority | Sprint | Due | Timing |', '|---|---|---|---|---|---|---|',\n    ...ids.map((id) => byId.get(id)).map((t) =>\n      `| ${t.task_id} | ${cell(t.task_name)} | ${t.assignee} | ${t.priority} | ${t.sprint} | ${t.due_date} | ${timing(t)} |`)].join('\\n');\n}\n\nconst citedList = (items) => (items.length\n  ? items.map((x) => `- ${x.text}${x.task_ids.length ? ` _(${x.task_ids.join(', ')})_` : ''}`).join('\\n')\n  : '- _None._');\n\nfunction renderReport(report, scope, r, grounding) {\n  const c = scope.status_counts;\n  const progress = ['| Status | Tasks |', '|---|---|', ...STATUSES.map((s) => `| ${s} | ${c[s]} |`), `| **Total** | **${scope.total}** |`].join('\\n');\n  const byStatus = STATUSES.filter((s) => c[s] > 0).map((s) =>\n    `### ${s} (${c[s]})\\n\\n${taskTable(scope.task_ids.filter((id) => byId.get(id).status === s))}`);\n  const ctx = scope.context_ids;\n  const context = [\n    ctx.carried_over.length ? `**Carried over from earlier sprints (not done)**\\n\\n${taskTable(ctx.carried_over)}` : null,\n    ctx.blocked_elsewhere.length ? `**Blocked outside this scope**\\n\\n${taskTable(ctx.blocked_elsewhere)}` : null,\n    ctx.due_soon_elsewhere.length ? `**Due within ${cfg.dueSoonDays} days outside this scope**\\n\\n${taskTable(ctx.due_soon_elsewhere)}` : null,\n  ].filter(Boolean);\n  return [\n    `# Weekly Status Report — ${scope.label}`,\n    `_Generated by Mira · as of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}, ${f.current_phase}) · Source: sample_task_board.csv_`,\n    `**Overall status: ${RAG_ICON[r.level]} ${r.level}** — ${r.reasons.join('; ')}`,\n    `**${report.headline}**`,\n    '## Summary', report.summary,\n    '## Progress',\n    `${progress}\\n\\nCompletion: **${scope.completion_pct}%** (${c.Done} of ${scope.total} done)` +\n      (scope.type === 'sprint' ? ` · Whole project: ${f.completion_pct}% (${f.status_counts.Done} of ${f.total_tasks} done)` : ''),\n    '## Tasks by status', ...byStatus,\n    ...(context.length ? ['## Watch list', ...context] : []),\n    '## Highlights', citedList(report.highlights),\n    '## Concerns & blockers', citedList(report.concerns),\n    '## Focus for next week', citedList(report.next_week_focus),\n    '## Decisions / escalations needed', citedList(report.decisions_needed),\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} narrative items verified (task IDs in scope, numbers match the task board)` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n  ].join('\\n\\n');\n}\n\nfunction renderNoData(nd, req) {\n  const notFound = req.scope && !req.scope.found ? `${req.scope.label} has no tasks on the task board. ` : '';\n  return [\n    '## No task data available',\n    `${notFound}I can't produce a status report from the request alone – there are no task statuses, owners or due dates to report on.`,\n    nd.message,\n    '**To generate the report, please provide**', list(nd.what_to_provide),\n    '_No task statuses, counts or progress percentages were generated._',\n  ].join('\\n\\n');\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const content = body.choices?.[0]?.message?.content ?? '';\n\n  let output = null, parseError = null;\n  try { output = JSON.parse(content); } catch (e) { parseError = e.message; }\n\n  let markdown, grounding = null, r = null;\n  const status = output?.status ?? 'ERROR';\n  const scope = req.scope;\n  if (!output) {\n    markdown = `⚠ Status Reporter returned unparseable output (${parseError}).\\n\\n${content}`;\n  } else if (status === 'REPORT' && output.report && scope?.found) {\n    grounding = groundingCheck(output.report, scope);\n    r = rag(scope);\n    markdown = renderReport(output.report, scope, r, grounding);\n  } else {\n    markdown = renderNoData(output.no_data ?? { message: 'No task data was provided.', what_to_provide: [] }, req);\n  }\n\n  // Model latency from OpenAI's header gives accurate per-call timing even when items run in sequence.\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const counts = grounding ? STATUSES.map((s) => `${s} ${scope.status_counts[s]}`).join(' · ') : null;\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: req.uses_project_data,\n      scope: grounding ? scope.label : null,\n      counts,\n      rag: r?.level ?? null,\n      grounding,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'status', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, status, scope: scope?.label ?? null, uses_project_data: req.uses_project_data, groundedness: grounding?.score ?? null, as_of_date: f.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { status, scope: scope?.label ?? null },\n            outputs: grounding ? { ...grounding, rag: r, counts } : { skipped: 'no report generated' },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "17e8e68c-f776-40b5-b0d6-5dc9a21b0a70",
+      "name": "Milestone Tracker: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        880
+      ],
+      "parameters": {
+        "jsCode": "// Milestone Tracker – computes, in code, the milestones due in the window, links each milestone to\n// the tasks due inside its phase, and classifies every open task's deadline risk. The model only\n// writes the narrative and recommended actions, citing flagged task IDs (enum-constrained).\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\nconst f = kb.facts;\nconst DAY = 86400000;\nconst toMs = (s) => Date.parse(`${s}T00:00:00Z`);\nconst asOf = toMs(f.as_of_date);\nconst dueSoonDays = Number(cfg.dueSoonDays);\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Milestone Tracker inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You explain upcoming milestones and deadline risks from facts that have already been computed for you, and recommend concrete actions.\n\nINPUT\n- USER REQUEST and TRACKER DATA: <window>, <milestones_in_window> (with linked tasks and status), <next_milestones>, <flagged_tasks> (blocked, overdue, at risk, due soon – with the reason).\n\nRULES (hallucination guardrails)\n- The milestone and task tables are rendered by code. Mention only milestones and tasks that appear in TRACKER DATA, with their names exactly as given. Never invent milestones, dates or tasks.\n- Do not state a number or date unless it appears in TRACKER DATA.\n- headline: one sentence answering the PM's question directly.\n- summary: 2–3 sentences: what is coming up, what threatens it, and how serious it is.\n- actions: 2–5 concrete actions (owner + what to do), each citing the task_ids it addresses. Address every Blocked and Overdue task.\n- escalations: decisions or help the PM must ask for (e.g. resourcing a blocked task). Empty array if none.\n\nOUTPUT\nReturn JSON matching the provided schema.`;\n\nconst byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\n\n// Deadline risk for every open task, from fixed rules.\nfunction taskRisk(t) {\n  if (t.status === 'Done') return null;\n  if (t.status === 'Blocked') return { level: 'Blocked', reason: `blocked – ${t.description.split('BLOCKED:')[1]?.trim() ?? 'see description'}` };\n  if (overdueIds.has(t.task_id)) return { level: 'Overdue', reason: `${-t.days_until_due}d past due and still ${t.status}` };\n  if (t.days_until_due <= dueSoonDays && t.status === 'To Do') return { level: 'At risk', reason: `due in ${t.days_until_due}d and not started` };\n  if (t.days_until_due <= dueSoonDays) return { level: 'Due soon', reason: `due in ${t.days_until_due}d, in progress` };\n  return null;\n}\n\nfunction buildTracker(windowDays) {\n  const windowEnd = asOf + windowDays * DAY;\n  const flagged = kb.tasks.map((t) => ({ t, risk: taskRisk(t) })).filter((x) => x.risk)\n    .map(({ t, risk }) => ({ task_id: t.task_id, task_name: t.task_name, assignee: t.assignee, priority: t.priority,\n      sprint: t.sprint, status: t.status, due_date: t.due_date, days_until_due: t.days_until_due, risk: risk.level, reason: risk.reason }));\n  const flaggedIds = new Set(flagged.map((x) => x.task_id));\n\n  // A milestone is linked to the tasks due inside its phase; it is at risk if any of them is overdue or blocked.\n  const phaseOf = new Map(kb.timeline.map((p) => [p.phase, p]));\n  const enrich = (m) => {\n    const p = phaseOf.get(m.phase);\n    const linked = kb.tasks.filter((t) => toMs(t.due_date) >= toMs(p.start_date) && toMs(t.due_date) <= toMs(p.end_date));\n    const threats = linked.filter((t) => t.status === 'Blocked' || overdueIds.has(t.task_id));\n    const open = linked.filter((t) => t.status !== 'Done');\n    return {\n      ...m,\n      linked_task_ids: linked.map((t) => t.task_id),\n      status: !linked.length ? 'No linked tasks' : threats.length ? 'At risk' : open.length ? 'In progress' : 'Tasks done',\n      threat_ids: threats.map((t) => t.task_id),\n    };\n  };\n  const inWindow = kb.milestones.filter((m) => m.days_from_as_of >= 0 && toMs(m.due_date) <= windowEnd).map(enrich);\n  const next = kb.milestones.filter((m) => toMs(m.due_date) > windowEnd).slice(0, 2).map(enrich);\n  const linkedIds = [...inWindow, ...next].flatMap((m) => m.linked_task_ids);\n  return {\n    window_days: windowDays,\n    window: `${f.as_of_date} to ${new Date(windowEnd).toISOString().slice(0, 10)}`,\n    milestones_in_window: inWindow,\n    next_milestones: next,\n    flagged,\n    allowed_task_ids: [...new Set([...flaggedIds, ...linkedIds])],\n  };\n}\n\nfunction trackerBlock(tr) {\n  const ms = (list) => (list.length ? list.map((m) =>\n    `${m.milestone} | Phase ${m.phase}: ${m.phase_name} | due ${m.due_date} (in ${m.days_from_as_of}d) | ${m.status}` +\n    ` | linked tasks: ${m.linked_task_ids.map((id) => `${id} ${byId.get(id).task_name} (${byId.get(id).status})`).join('; ') || 'none'}`).join('\\n') : 'none');\n  const tasks = tr.flagged.map((x) => `${x.task_id} | ${x.task_name} | ${x.assignee} | ${x.priority} | ${x.status} | due ${x.due_date} | ${x.risk}: ${x.reason}`).join('\\n') || 'none';\n  return `TRACKER DATA – ${kb.project.name}\\n` +\n    `<window>\\nAs of ${f.as_of_date} (week ${f.current_week}, ${f.current_phase}); milestone window ${tr.window_days} days: ${tr.window}; task due-soon window ${dueSoonDays} days\\n</window>\\n` +\n    `<milestones_in_window>\\n${ms(tr.milestones_in_window)}\\n</milestones_in_window>\\n` +\n    `<next_milestones>\\n${ms(tr.next_milestones)}\\n</next_milestones>\\n` +\n    `<flagged_tasks>\\nTask | Name | Owner | Priority | Status | Due | Risk\\n${tasks}\\n</flagged_tasks>`;\n}\n\nfunction responseFormat(ids) {\n  const cited = {\n    type: 'array',\n    items: {\n      type: 'object', additionalProperties: false, required: ['text', 'task_ids'],\n      properties: { text: { type: 'string' }, task_ids: { type: 'array', items: { type: 'string', enum: ids } } },\n    },\n  };\n  return {\n    type: 'json_schema',\n    json_schema: {\n      name: 'milestone_output',\n      strict: true,\n      schema: {\n        type: 'object', additionalProperties: false, required: ['headline', 'summary', 'actions', 'escalations'],\n        properties: { headline: { type: 'string' }, summary: { type: 'string' }, actions: cited, escalations: cited },\n      },\n    },\n  };\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const tracker = buildTracker(Number(req.window_days) || Number(cfg.upcomingWindowDays));\n  const ids = tracker.allowed_task_ids.length ? tracker.allowed_task_ids : kb.tasks.map((t) => t.task_id);\n  return {\n    json: {\n      ...req,\n      agent: 'Milestone Tracker',\n      uses_project_data: true,\n      tracker,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: 1200,\n        response_format: responseFormat(ids),\n        messages: [\n          { role: 'system', content: SYSTEM_PROMPT },\n          { role: 'user', content: `USER REQUEST:\\n${req.query}\\n\\n${trackerBlock(tracker)}` },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "93d69138-2a48-4f5b-aec3-359cf6843049",
+      "name": "OpenAI: Milestone Tracker",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        880
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "bdafedf0-f71d-4105-ac14-30b2c80c2252",
+      "name": "Milestone Tracker: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        880
+      ],
+      "parameters": {
+        "jsCode": "// ---------- Shared narrative checks (prepended by the build to agents that write free text) ----------\n// Every task ID, number and date in model-written text must come from the computed facts, and\n// names of out-of-scope tasks must not appear.\n\nconst MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];\nconst MONTH_RE = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\\\.?';\nconst DATE_PATTERNS = [\n  [/\\b(\\d{4})-(\\d{2})-(\\d{2})\\b/g, (m) => [m[1], m[2], m[3]]],\n  [new RegExp(`\\\\b${MONTH_RE}\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[1].toLowerCase().slice(0, 3)) + 1, m[2]]],\n  [new RegExp(`\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?\\\\s+${MONTH_RE}(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[2].toLowerCase().slice(0, 3)) + 1, m[1]]],\n];\n\nfunction extractDates(text, defaultYear) {\n  const found = [];\n  let rest = text;\n  for (const [re, parts] of DATE_PATTERNS) {\n    rest = rest.replace(re, (...m) => {\n      const [y, mo, d] = parts(m);\n      found.push({ raw: m[0], iso: `${y ?? defaultYear}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` });\n      return ' ';\n    });\n  }\n  return { found, rest };\n}\n\n// items: [{ where, text, task_ids }]; allowed: { ids:Set, nums:Set, pcts:Set, dates:Set, forbiddenNames:[] }\nfunction checkNarrative(items, allowed, defaultYear) {\n  const issues = [];\n  let grounded = 0;\n  for (const it of items) {\n    const problems = [];\n    const ids = [...new Set([...(it.text.match(/\\bT\\d{3}\\b/g) ?? []), ...(it.task_ids ?? [])])];\n    const outOfScope = ids.filter((id) => !allowed.ids.has(id));\n    if (outOfScope.length) problems.push(`task not in scope: ${outOfScope.join(', ')}`);\n    const lower = it.text.toLowerCase();\n    const named = (allowed.forbiddenNames ?? []).filter((n) => lower.includes(n.toLowerCase()));\n    if (named.length) problems.push(`mentions out-of-scope task: ${named.join(', ')}`);\n    const { found, rest } = extractDates(it.text, defaultYear);\n    found.filter((d) => !allowed.dates.has(d.iso)).forEach((d) => problems.push(`unsupported date “${d.raw}”`));\n    const stripped = rest.replace(/\\bT\\d{3}\\b/g, ' ').replace(/\\b(sprint|phase|week|q)\\s*\\d+/gi, ' ');\n    for (const m of stripped.matchAll(/(\\d+(?:\\.\\d+)?)\\s*(%|percent)?/g)) {\n      const n = Number(m[1]);\n      if (m[2] ? !allowed.pcts.has(n) : !allowed.nums.has(n)) problems.push(`unsupported ${m[2] ? 'percentage' : 'number'} “${m[0].trim()}”`);\n    }\n    if (problems.length) issues.push(`${it.where}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  return { checked: items.length, grounded, score: items.length ? grounded / items.length : 1, issues };\n}\n\n// ---------- Agent code ----------\n// Milestone Tracker – renders milestone and deadline-risk tables from the computed tracker, verifies\n// the narrative (task IDs, numbers, dates) and describes the LangSmith trace.\n\nconst kb = $('Knowledge Base').first().json;\nconst cfg = $('Config').first().json;\nconst requests = $('Milestone Tracker: Build Prompt').all();\nconst f = kb.facts;\nconst byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst cell = (s) => String(s ?? '').replace(/\\|/g, '/').replace(/\\n/g, ' ');\nconst ICON = { Blocked: '⛔', Overdue: '⚠', 'At risk': '🟠', 'Due soon': '🕒' };\nconst MS_ICON = { 'At risk': '🟠 At risk', 'In progress': '🔵 In progress', 'Tasks done': '🟢 Tasks done', 'No linked tasks': '⚪ No linked tasks' };\n\nfunction milestoneTable(list) {\n  return ['| Milestone | Phase | Due | In | Status | Linked tasks |', '|---|---|---|---|---|---|',\n    ...list.map((m) => `| ${cell(m.milestone)} | ${m.phase}. ${cell(m.phase_name)} | ${m.due_date} | ${m.days_from_as_of}d | ${MS_ICON[m.status]}` +\n      `${m.threat_ids.length ? ` (${m.threat_ids.join(', ')})` : ''} | ${m.linked_task_ids.map((id) => `${id} (${byId.get(id).status})`).join(', ') || '—'} |`)].join('\\n');\n}\n\nfunction taskTable(flagged) {\n  const order = ['Blocked', 'Overdue', 'At risk', 'Due soon'];\n  return ['| ID | Task | Owner | Priority | Status | Due | Risk |', '|---|---|---|---|---|---|---|',\n    ...[...flagged].sort((a, b) => order.indexOf(a.risk) - order.indexOf(b.risk) || a.days_until_due - b.days_until_due)\n      .map((x) => `| ${x.task_id} | ${cell(x.task_name)} | ${x.assignee} | ${x.priority} | ${x.status} | ${x.due_date} | ${ICON[x.risk]} **${x.risk}** – ${cell(x.reason)} |`)].join('\\n');\n}\n\nconst citedList = (items) => (items.length\n  ? items.map((x) => `- ${x.text}${x.task_ids.length ? ` _(${x.task_ids.join(', ')})_` : ''}`).join('\\n')\n  : '- _None._');\n\nfunction allowedFacts(tr) {\n  const ids = new Set(tr.allowed_task_ids);\n  const all = [...tr.milestones_in_window, ...tr.next_milestones];\n  const nums = new Set([tr.window_days, Number(cfg.dueSoonDays), f.current_week, f.total_weeks,\n    tr.milestones_in_window.length, tr.next_milestones.length, tr.flagged.length,\n    ...['Blocked', 'Overdue', 'At risk', 'Due soon'].map((l) => tr.flagged.filter((x) => x.risk === l).length),\n    ...all.map((m) => m.days_from_as_of), ...all.map((m) => m.phase),\n    ...tr.allowed_task_ids.map((id) => Math.abs(byId.get(id).days_until_due))]);\n  const dates = new Set([f.as_of_date, ...tr.window.split(' to '), ...all.map((m) => m.due_date),\n    ...tr.allowed_task_ids.map((id) => byId.get(id).due_date)]);\n  return { ids, nums, pcts: new Set(), dates };\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const tr = req.tracker;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n\n  let out = null, parseError = null;\n  try { out = JSON.parse(body.choices?.[0]?.message?.content ?? ''); } catch (e) { parseError = e.message; }\n  out = out ?? { headline: `⚠ Milestone Tracker returned unparseable output (${parseError}).`, summary: '', actions: [], escalations: [] };\n\n  const items = [\n    { where: 'headline', text: out.headline, task_ids: [] },\n    { where: 'summary', text: out.summary, task_ids: [] },\n    ...out.actions.map((x, k) => ({ where: `actions[${k + 1}]`, ...x })),\n    ...out.escalations.map((x, k) => ({ where: `escalations[${k + 1}]`, ...x })),\n  ];\n  const grounding = checkNarrative(items, allowedFacts(tr), f.as_of_date.slice(0, 4));\n\n  const milestones = [\n    `## Milestones due in the next ${tr.window_days} days (${tr.window})`,\n    tr.milestones_in_window.length ? milestoneTable(tr.milestones_in_window) : '_No milestones fall in this window._',\n    ...(tr.next_milestones.length ? ['**Next milestones after the window**', milestoneTable(tr.next_milestones)] : []),\n  ];\n  const tasks = [\n    '## Tasks blocked or at risk of missing their deadline',\n    tr.flagged.length ? taskTable(tr.flagged) : '_No blocked, overdue or at-risk tasks._',\n    `_Rules: Blocked = status Blocked · Overdue = past due and not done · At risk = not started and due within ${cfg.dueSoonDays} days · Due soon = in progress and due within ${cfg.dueSoonDays} days._`,\n  ];\n  const tasksFirst = /block|task|deadline|overdue|at risk/i.test(req.query) && !/milestone/i.test(req.query);\n  const markdown = [\n    '# Milestone & Deadline Tracker',\n    `_Generated by Mira · as of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}, ${f.current_phase}) · Sources: project_timeline.csv, sample_task_board.csv_`,\n    `**${out.headline}**`,\n    out.summary,\n    ...(tasksFirst ? [...tasks, ...milestones] : [...milestones, ...tasks]),\n    '## Recommended actions', citedList(out.actions),\n    '## Escalations', citedList(out.escalations),\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} narrative items verified (tasks, numbers and dates match the data)` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((x) => `- ⚠ ${x}`).join('\\n')}` : ' ✅'),\n  ].filter(Boolean).join('\\n\\n');\n\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const ids = (level) => tr.flagged.filter((x) => x.risk === level).map((x) => x.task_id).join(', ');\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status: 'ALERTS',\n      uses_project_data: true,\n      upcoming_count: tr.milestones_in_window.length,\n      blocked: ids('Blocked'),\n      overdue: ids('Overdue'),\n      grounding,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status: 'ALERTS', response: markdown },\n        tags: ['mira', 'milestone', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, window_days: tr.window_days, groundedness: grounding.score, as_of_date: f.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { window: tr.window },\n            outputs: { ...grounding, flagged: tr.flagged.map((x) => `${x.task_id} ${x.risk}`) },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "19835a9d-98c1-476d-92a1-8cfdbee33439",
+      "name": "Stakeholder Comms: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        1100
+      ],
+      "parameters": {
+        "jsCode": "// Stakeholder Comms – drafts a stakeholder update email for a sprint (or the whole project).\n// Code fixes the scope and every number; the model may cite only in-scope task IDs (enum), so\n// tasks from other sprints cannot leak into the email.\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\nconst f = kb.facts;\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Stakeholder Comms agent inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You draft concise, professional stakeholder update emails from facts that have already been computed for you.\n\nINPUT\n- USER REQUEST and UPDATE DATA: <scope>, <facts> (counts and completion already computed), <tasks_in_scope>, <related_milestones>.\n\nRULES (hallucination guardrails)\n- Write ONLY about the tasks in <tasks_in_scope>. Never mention tasks, plans or work from other sprints, and do not preview future sprints.\n- Every bullet must cite the task_ids it is about. Code prints the exact task name in front of each bullet, so the bullet text is only the update itself (e.g. \"completed on schedule; findings feed the gap analysis report\") – do not repeat or paraphrase the task name. Never invent tasks, owners, dates or results.\n- Do not state a number, percentage or date unless it appears in UPDATE DATA.\n- Each milestone in <related_milestones> is separate – name it exactly as listed and never merge two into one (e.g. not \"the gap analysis report due for the systems audit\").\n- The board has statuses and due dates only – no completion dates and no results. Never say a task finished \"on schedule\", \"on time\" or \"early\", and never state outcomes as fact (\"findings will improve X\"); say what is done, in progress or overdue.\n- Tone: professional, clear, non-technical, honest about slippage – no hype. Short paragraphs and bullets.\n- subject: specific, under 12 words, naming the scope.\n- greeting_name: who the email is addressed to (from the request, else \"team\").\n- opening: 1–2 sentences with the headline message.\n- completed / in_progress / issues / next_steps: bullets, each citing task_ids. issues covers overdue or blocked work and its impact on related milestones; empty array if none. next_steps covers only the remaining in-scope work.\n- asks: decisions or support needed from stakeholders; empty array if none.\n- closing: one sentence.\n\nOUTPUT\nReturn JSON matching the provided schema.`;\n\nconst sprintNo = (s) => Number(String(s).replace(/\\D/g, ''));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\nconst toMs = (s) => Date.parse(`${s}T00:00:00Z`);\n\nfunction resolveScope(q, sprint) {\n  if (sprint) return `Sprint ${sprint}`;\n  const m = q.match(/sprint\\s*(\\d+)/i);\n  return m ? `Sprint ${m[1]}` : null;\n}\n\nfunction buildScope(sprint) {\n  const inScope = sprint ? kb.tasks.filter((t) => t.sprint === sprint) : kb.tasks;\n  const c = Object.fromEntries(STATUSES.map((s) => [s, inScope.filter((t) => t.status === s).length]));\n  const dues = inScope.map((t) => t.due_date).sort();\n  // Milestones whose phase overlaps the scope's due dates.\n  const phases = kb.timeline.filter((p) => inScope.some((t) => toMs(t.due_date) >= toMs(p.start_date) && toMs(t.due_date) <= toMs(p.end_date)));\n  const milestones = kb.milestones.filter((m) => phases.some((p) => p.phase === m.phase));\n  const ids = new Set(inScope.map((t) => t.task_id));\n  return {\n    label: sprint ?? 'Whole project',\n    sprint,\n    task_ids: inScope.map((t) => t.task_id),\n    status_counts: c,\n    total: inScope.length,\n    completion_pct: inScope.length ? Math.round((c.Done / inScope.length) * 100) : 0,\n    overdue_ids: inScope.filter((t) => overdueIds.has(t.task_id)).map((t) => t.task_id),\n    period: dues.length ? `${dues[0]} to ${dues[dues.length - 1]}` : null,\n    milestones,\n    out_of_scope_names: kb.tasks.filter((t) => !ids.has(t.task_id)).map((t) => t.task_name),\n    found: inScope.length > 0,\n  };\n}\n\nfunction updateBlock(s) {\n  const byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\n  const rows = s.task_ids.map((id) => byId.get(id)).map((t) =>\n    `${t.task_id} | ${t.task_name} | ${t.status} | ${t.assignee} | due ${t.due_date}${overdueIds.has(t.task_id) ? ` | OVERDUE by ${-t.days_until_due}d` : ''} | ${t.description}`).join('\\n');\n  const ms = s.milestones.map((m) => `${m.milestone} (Phase ${m.phase}: ${m.phase_name}, due ${m.due_date})`).join('; ') || 'none';\n  return `UPDATE DATA – ${kb.project.name}\\n` +\n    `<scope>\\n${s.label}${s.period ? ` (tasks due ${s.period})` : ''} · as of ${f.as_of_date}\\n</scope>\\n` +\n    `<facts>\\nTasks in scope: ${s.total}\\n${STATUSES.map((st) => `${st}: ${s.status_counts[st]}`).join('\\n')}\\n` +\n    `Completion: ${s.completion_pct}%\\nOverdue: ${s.overdue_ids.length}${s.overdue_ids.length ? ` (${s.overdue_ids.join(', ')})` : ''}\\n</facts>\\n` +\n    `<tasks_in_scope>\\nTask | Name | Status | Owner | Due | Flags | Description\\n${rows}\\n</tasks_in_scope>\\n` +\n    `<related_milestones>\\n${ms}\\n</related_milestones>`;\n}\n\nfunction responseFormat(ids) {\n  const cited = {\n    type: 'array',\n    items: {\n      type: 'object', additionalProperties: false, required: ['text', 'task_ids'],\n      properties: { text: { type: 'string' }, task_ids: { type: 'array', items: { type: 'string', enum: ids } } },\n    },\n  };\n  return {\n    type: 'json_schema',\n    json_schema: {\n      name: 'comms_output',\n      strict: true,\n      schema: {\n        type: 'object', additionalProperties: false,\n        required: ['subject', 'greeting_name', 'opening', 'completed', 'in_progress', 'issues', 'next_steps', 'asks', 'closing'],\n        properties: {\n          subject: { type: 'string' }, greeting_name: { type: 'string' }, opening: { type: 'string' },\n          completed: cited, in_progress: cited, issues: cited, next_steps: cited, asks: cited,\n          closing: { type: 'string' },\n        },\n      },\n    },\n  };\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const scope = buildScope(resolveScope(req.query, req.sprint));\n  return {\n    json: {\n      ...req,\n      agent: 'Stakeholder Comms',\n      uses_project_data: scope.found,\n      scope,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: 1200,\n        response_format: responseFormat(scope.found ? scope.task_ids : kb.tasks.map((t) => t.task_id)),\n        messages: [\n          { role: 'system', content: SYSTEM_PROMPT },\n          { role: 'user', content: `USER REQUEST:\\n${req.query}\\n\\n${scope.found ? updateBlock(scope) : 'UPDATE DATA: none – the requested sprint has no tasks.'}` },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "c3a5436f-f471-4410-8d36-9ed3e11435cf",
+      "name": "OpenAI: Stakeholder Comms",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2420,
+        1100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "b5feedab-c3d1-4cbb-9009-9234f34d7934",
+      "name": "Stakeholder Comms: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        1100
+      ],
+      "parameters": {
+        "jsCode": "// ---------- Shared narrative checks (prepended by the build to agents that write free text) ----------\n// Every task ID, number and date in model-written text must come from the computed facts, and\n// names of out-of-scope tasks must not appear.\n\nconst MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];\nconst MONTH_RE = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\\\.?';\nconst DATE_PATTERNS = [\n  [/\\b(\\d{4})-(\\d{2})-(\\d{2})\\b/g, (m) => [m[1], m[2], m[3]]],\n  [new RegExp(`\\\\b${MONTH_RE}\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[1].toLowerCase().slice(0, 3)) + 1, m[2]]],\n  [new RegExp(`\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?\\\\s+${MONTH_RE}(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[2].toLowerCase().slice(0, 3)) + 1, m[1]]],\n];\n\nfunction extractDates(text, defaultYear) {\n  const found = [];\n  let rest = text;\n  for (const [re, parts] of DATE_PATTERNS) {\n    rest = rest.replace(re, (...m) => {\n      const [y, mo, d] = parts(m);\n      found.push({ raw: m[0], iso: `${y ?? defaultYear}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` });\n      return ' ';\n    });\n  }\n  return { found, rest };\n}\n\n// items: [{ where, text, task_ids }]; allowed: { ids:Set, nums:Set, pcts:Set, dates:Set, forbiddenNames:[] }\nfunction checkNarrative(items, allowed, defaultYear) {\n  const issues = [];\n  let grounded = 0;\n  for (const it of items) {\n    const problems = [];\n    const ids = [...new Set([...(it.text.match(/\\bT\\d{3}\\b/g) ?? []), ...(it.task_ids ?? [])])];\n    const outOfScope = ids.filter((id) => !allowed.ids.has(id));\n    if (outOfScope.length) problems.push(`task not in scope: ${outOfScope.join(', ')}`);\n    const lower = it.text.toLowerCase();\n    const named = (allowed.forbiddenNames ?? []).filter((n) => lower.includes(n.toLowerCase()));\n    if (named.length) problems.push(`mentions out-of-scope task: ${named.join(', ')}`);\n    const { found, rest } = extractDates(it.text, defaultYear);\n    found.filter((d) => !allowed.dates.has(d.iso)).forEach((d) => problems.push(`unsupported date “${d.raw}”`));\n    const stripped = rest.replace(/\\bT\\d{3}\\b/g, ' ').replace(/\\b(sprint|phase|week|q)\\s*\\d+/gi, ' ');\n    for (const m of stripped.matchAll(/(\\d+(?:\\.\\d+)?)\\s*(%|percent)?/g)) {\n      const n = Number(m[1]);\n      if (m[2] ? !allowed.pcts.has(n) : !allowed.nums.has(n)) problems.push(`unsupported ${m[2] ? 'percentage' : 'number'} “${m[0].trim()}”`);\n    }\n    if (problems.length) issues.push(`${it.where}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  return { checked: items.length, grounded, score: items.length ? grounded / items.length : 1, issues };\n}\n\n// ---------- Agent code ----------\n// Stakeholder Comms – assembles the email (the \"at a glance\" line comes from code), verifies that\n// no out-of-scope task, number or date slipped in, and describes the LangSmith trace.\n\nconst kb = $('Knowledge Base').first().json;\nconst requests = $('Stakeholder Comms: Build Prompt').all();\nconst f = kb.facts;\nconst byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\n\n// Exact task names come from the board via task_ids, so the email always names the real tasks.\nconst bullets = (items) => items.map((x) => {\n  const names = x.task_ids.map((id) => byId.get(id)?.task_name).filter(Boolean);\n  return `- ${names.length ? `**${names.join(', ')}** – ` : ''}${x.text}`;\n}).join('\\n');\nconst section = (title, items) => (items.length ? `**${title}**\\n\\n${bullets(items)}` : null);\n\nfunction allowedFacts(s) {\n  const nums = new Set([s.total, s.completion_pct, s.overdue_ids.length, ...Object.values(s.status_counts),\n    ...s.task_ids.map((id) => Math.abs(byId.get(id).days_until_due)), ...s.milestones.map((m) => m.phase)]);\n  for (const id of s.task_ids) for (const m of `${byId.get(id).task_name} ${byId.get(id).description}`.matchAll(/\\d+/g)) nums.add(Number(m[0]));\n  if (s.sprint) nums.add(Number(s.sprint.replace(/\\D/g, '')));\n  const dates = new Set([f.as_of_date, ...s.task_ids.map((id) => byId.get(id).due_date), ...s.milestones.map((m) => m.due_date)]);\n  return { ids: new Set(s.task_ids), nums, pcts: new Set([s.completion_pct]), dates, forbiddenNames: s.out_of_scope_names };\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const s = req.scope;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n\n  let e = null, parseError = null;\n  try { e = JSON.parse(body.choices?.[0]?.message?.content ?? ''); } catch (err) { parseError = err.message; }\n\n  let markdown, grounding = null, status;\n  if (!s.found) {\n    status = 'NO_DATA';\n    markdown = `## No tasks found for ${s.label}\\n\\nThe task board has no tasks in ${s.label}, so there is nothing to report to stakeholders. Please check the sprint number.`;\n  } else if (!e) {\n    status = 'ERROR';\n    markdown = `⚠ Stakeholder Comms returned unparseable output (${parseError}).`;\n  } else {\n    status = 'EMAIL';\n    const items = [\n      { where: 'subject', text: e.subject }, { where: 'opening', text: e.opening }, { where: 'closing', text: e.closing },\n      ...['completed', 'in_progress', 'issues', 'next_steps', 'asks'].flatMap((k) => e[k].map((x, n) => ({ where: `${k}[${n + 1}]`, ...x }))),\n    ];\n    grounding = checkNarrative(items, allowedFacts(s), f.as_of_date.slice(0, 4));\n    const c = s.status_counts;\n    const glance = `${c.Done} of ${s.total} tasks done (${s.completion_pct}%)` +\n      (c['In Progress'] ? ` · ${c['In Progress']} in progress` : '') + (c.Blocked ? ` · ${c.Blocked} blocked` : '') +\n      (c['To Do'] ? ` · ${c['To Do']} not started` : '') +\n      (s.overdue_ids.length ? ` · overdue: ${s.overdue_ids.map((id) => `${byId.get(id).task_name} (${-byId.get(id).days_until_due}d)`).join(', ')}` : '');\n    markdown = [\n      `**To:** ${e.greeting_name === 'team' ? 'Project stakeholders' : e.greeting_name}  \\n**Subject:** ${e.subject}`,\n      '---',\n      `Hi ${e.greeting_name},`,\n      e.opening,\n      `**${s.label} at a glance:** ${glance}`,\n      section('Completed', e.completed),\n      section('In progress', e.in_progress),\n      section('Issues & impact', e.issues),\n      section('Next steps', e.next_steps),\n      section('Support needed', e.asks),\n      e.closing,\n      'Best regards,  \\n[Your name]',\n      '---',\n      `_Drafted by Mira from sample_task_board.csv · as of ${f.as_of_date} · scope: ${s.label} only._  \\n` +\n        `Grounding check: ${grounding.grounded}/${grounding.checked} email parts verified (only ${s.label} tasks, numbers and dates match the data)` +\n        (grounding.issues.length ? `\\n${grounding.issues.map((x) => `- ⚠ ${x}`).join('\\n')}` : ' ✅'),\n    ].filter(Boolean).join('\\n\\n');\n  }\n\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: s.found,\n      scope: s.label,\n      grounding,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'comms', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, scope: s.label, groundedness: grounding?.score ?? null, as_of_date: f.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { scope: s.label },\n            outputs: grounding ?? { skipped: status },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "305cdb49-fb83-42ee-8f64-0494b4d4e135",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -500
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 300,
+        "content": "## Mira – Project Intelligence Assistant\n**Credentials:** select *OpenAI* on the **OpenAI:** nodes and *LangSmith* Header Auth on the 3 **LangSmith:** HTTP nodes (Log Trace, Post Feedback, Upload Experiment).\n- **Run Test Suite** → runs all 12 baseline tests (T1–T12) + X1 through the router; open **Results** for PASS/FAIL per test. Each run is uploaded as a LangSmith **experiment** on dataset **mira-baseline** (Datasets & Experiments → compare runs).\n- **Chat with Mira** → click *Open chat* and ask anything; the reply comes from **Chat Reply**.\n- Scores (pass, route, groundedness, judge) are also attached to every trace as **feedback**.\n- LangSmith project **mira** → one trace per request: *Orchestrator* → specialist → checks."
+      }
+    },
+    {
+      "id": "efdd578c-6630-413d-bce8-21a836a15de7",
+      "name": "Routing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        560
+      ],
+      "parameters": {
+        "width": 640,
+        "height": 200,
+        "content": "### Orchestrator = router + insufficiency gate\nLLM classifies intent and whether the request is about the project on file.\n**Code** applies the gate: on-file data → specialist; self-sufficient plan request → Planner; otherwise → **Clarifier**. Out of scope → **Fallback** (no LLM)."
+      }
+    }
+  ],
+  "connections": {
+    "Chat with Mira": {
+      "main": [
+        [
+          {
+            "node": "Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Test Suite": {
+      "main": [
+        [
+          {
+            "node": "Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requests": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Queue Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue Requests": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator: Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator: Route": {
+      "main": [
+        [
+          {
+            "node": "Route to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Response": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Build Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Build Trace": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Log Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Log Trace": {
+      "main": [
+        [
+          {
+            "node": "Next Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Next Request": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Results": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Build Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Build Feedback": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Post Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Post Feedback": {
+      "main": [
+        [
+          {
+            "node": "Test Suite?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Build Experiment": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Upload Experiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Requests": {
+      "main": [
+        [
+          {
+            "node": "Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Orchestrator: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Suite?": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Build Experiment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chat Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Agent": {
+      "main": [
+        [
+          {
+            "node": "Clarifier: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Planner: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Risk Assessor: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Status Reporter: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Milestone Tracker: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stakeholder Comms: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clarifier: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Clarifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Clarifier": {
+      "main": [
+        [
+          {
+            "node": "Clarifier: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clarifier: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planner: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Planner Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Planner Agent": {
+      "main": [
+        [
+          {
+            "node": "Planner: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Planner: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessor: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Risk Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Risk Assessor": {
+      "main": [
+        [
+          {
+            "node": "Risk Assessor: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessor: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Reporter: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Status Reporter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Status Reporter": {
+      "main": [
+        [
+          {
+            "node": "Status Reporter: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Reporter: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Tracker: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Milestone Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Milestone Tracker": {
+      "main": [
+        [
+          {
+            "node": "Milestone Tracker: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Milestone Tracker: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stakeholder Comms: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Stakeholder Comms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Stakeholder Comms": {
+      "main": [
+        [
+          {
+            "node": "Stakeholder Comms: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stakeholder Comms: Format Output": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fallback": {
+      "main": [
+        [
+          {
+            "node": "Collect Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

@@ -1,0 +1,338 @@
+{
+  "name": "Mira – Step 4: Risk Assessor",
+  "nodes": [
+    {
+      "id": "c5be3110-dc1a-4aae-94d8-0baf0e7865a1",
+      "name": "Run Risk Tests",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "b342e171-ed1a-40af-b07d-d5aa99a07827",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "54ae5375-192f-42ae-ab9e-6878b922b766",
+              "name": "model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "c9a8bac8-f83a-41eb-bc66-6b82e8ad488f",
+              "name": "judgeModel",
+              "value": "gpt-4o",
+              "type": "string"
+            },
+            {
+              "id": "8bd34251-5ad0-4ecd-b18c-402c54d19ef3",
+              "name": "langsmithProject",
+              "value": "mira",
+              "type": "string"
+            },
+            {
+              "id": "dd0418d8-5b67-42a3-9d28-7e4e7591835b",
+              "name": "langsmithEndpoint",
+              "value": "https://api.smith.langchain.com",
+              "type": "string"
+            },
+            {
+              "id": "45fa0581-941b-4540-81e7-c617bf0ad2a2",
+              "name": "asOfDate",
+              "value": "2026-04-24",
+              "type": "string"
+            },
+            {
+              "id": "796776ce-cb51-4c51-8cfe-0ad249c8799a",
+              "name": "projectStartDate",
+              "value": "2026-03-30",
+              "type": "string"
+            },
+            {
+              "id": "afaf7b2f-1aef-4854-a7d9-c057f1f84109",
+              "name": "upcomingWindowDays",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "57ed7145-6654-419a-80ff-09ec8b3b537c",
+              "name": "dueSoonDays",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "1bf43ed6-3437-4af4-a216-402fcf57edf2",
+              "name": "temperature",
+              "value": 0.2,
+              "type": "number"
+            },
+            {
+              "id": "78df8827-37b8-419b-80a2-33498fa4487f",
+              "name": "maxTokens",
+              "value": 3000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e836ebf7-406d-459a-9f17-57c7718c15cb",
+      "name": "Knowledge Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Mira Knowledge Base: embedded project data + deterministic FACTS.\n// Code computes counts, filters and dates so the LLM agents never have to.\n// To use another project, replace the four data blocks below.\n\nconst cfg = $('Config').first().json;\n\n// ---------- Embedded project data (generated from Resources/) ----------\nconst PROJECT_NAME = 'AI Adoption Project – ABCDE Ltd.';\nconst PROJECT_DESCRIPTION = `AI Adoption Project Description for ABCDE Ltd.\n\nABCDE Ltd., a mid-sized enterprise specializing in logistics and supply chain solutions, is embarking on an AI adoption initiative to enhance operational efficiency, improve customer experience, and drive data-driven decision-making across the organization. This project will focus on integrating AI-powered tools into core business functions, including demand forecasting, route optimization, inventory management, and customer support. By leveraging machine learning models and natural language processing, the company aims to reduce manual overhead, minimize errors, and uncover actionable insights from historical and real-time data.\n\nThe AI adoption project will be implemented in phases, beginning with a detailed assessment of current workflows and data infrastructure, followed by pilot implementations in targeted departments. Key goals include reducing delivery delays by 15%, lowering operational costs by 10%, and improving service responsiveness. A cross-functional task force comprising data scientists, IT professionals, and business stakeholders will oversee the deployment and ensure alignment with organizational objectives. This strategic move is expected to position ABCDE Ltd. as a technology-forward leader in the logistics industry.`;\nconst TIMELINE_CSV = `phase,phase_name,start_week,end_week,key_activities,milestones_deliverables\n1,Project Initiation,1,2,\"Define project scope; Form cross-functional team; Initial stakeholder meeting\",\"Project charter signed off; Team structure finalized\"\n2,Current State Analysis,3,4,\"Assess existing processes & systems; Identify data sources & gaps\",\"Current systems audit report; Gap analysis report\"\n3,Use Case Selection,5,6,\"Shortlist priority AI use cases (forecasting, route optimization)\",\"Final list of prioritized use cases with success criteria\"\n4,Pilot Design,7,10,\"Data collection & preparation; Model design and development\",\"Working prototype models; Data pipelines established\"\n5,Pilot Implementation,11,14,\"Deploy AI models in test environments; Monitor performance\",\"Pilot results report; User feedback and performance metrics\"\n6,Evaluation & Iteration,15,16,\"Evaluate pilot outcomes; Adjust models as needed\",\"Updated models and process refinements\"\n7,Full Deployment,17,22,\"Scale AI models across selected departments; Train staff\",\"Full production rollout; Training sessions completed\"\n8,Monitoring & Review,23,24,\"Continuous performance monitoring; Final project review\",\"Project closure report; Recommendations for future scaling\"`;\nconst RISKS_CSV = `risk_id,category,risk_challenge,impact,mitigation_strategy\nR01,Data Quality & Availability,Incomplete or unstructured data,Poor model performance and inaccurate outcomes,Perform early data audits and implement robust data governance\nR02,Integration Issues,Difficulty integrating AI with legacy systems,Delays in deployment and operational disruptions,Plan integration roadmap and use APIs/middleware\nR03,Talent & Skills Gap,Lack of internal AI/ML expertise,Overreliance on external vendors and slow progress,Provide staff training and hire specialized talent\nR04,Change Resistance,Employees resist adopting AI-driven workflows,Low adoption and reduced ROI,Strong change management and early engagement\nR05,Ethical & Legal Concerns,Risks of biased models or data privacy violations,Legal repercussions and reputational damage,Involve legal early and implement fairness checks\nR06,Cost Overruns,Underestimation of AI development costs,Budget constraints and project delays,Set realistic budget and build in contingency funds\nR07,Unrealistic Expectations,Stakeholders expect immediate ROI,Disillusionment and loss of support,Align expectations and show quick wins\nR08,Model Performance Drift,AI models lose accuracy over time,Incorrect decisions and trust erosion,Regular retraining cycles and monitoring dashboards\nR09,Security Vulnerabilities,AI models targeted by adversarial attacks,Data breaches and operational risks,Adopt AI security best practices and penetration testing\nR10,Vendor Lock-in,Overdependence on a specific AI platform,Flexibility loss and future switching costs,Favor open standards and negotiate flexible vendor terms`;\nconst TASKS_CSV = `task_id,task_name,status,assignee,priority,sprint,due_date,labels,description\nT001,Define project scope and objectives,Done,Arjun Mehta,High,Sprint 1,2026-04-07,Planning,\"Document project scope, goals, and success criteria for AI adoption\"\nT002,Form cross-functional task force,Done,Sarah Lin,High,Sprint 1,2026-04-07,Planning,\"Identify and onboard team members from data science, IT, and business units\"\nT003,Initial stakeholder alignment meeting,Done,Arjun Mehta,High,Sprint 1,2026-04-10,Planning,\"Present project charter and get sign-off from leadership\"\nT004,Audit existing data infrastructure,Done,Priya Nair,High,Sprint 2,2026-04-18,Analysis,\"Assess current databases, data pipelines, and data quality\"\nT005,Map current logistics workflows,Done,James Wong,Medium,Sprint 2,2026-04-18,Analysis,\"Document end-to-end processes for demand forecasting, routing, and inventory\"\nT006,Identify data gaps and quality issues,In Progress,Priya Nair,High,Sprint 2,2026-04-21,Analysis,\"Gap analysis report comparing available data vs requirements for AI models\"\nT007,Shortlist AI use cases,In Progress,Arjun Mehta,High,Sprint 3,2026-04-28,Use Cases,\"Evaluate and prioritize: demand forecasting, route optimization, inventory mgmt, customer support\"\nT008,Define success criteria for each use case,To Do,Sarah Lin,High,Sprint 3,2026-05-02,Use Cases,\"Set measurable KPIs: 15% reduction in delivery delays, 10% cost reduction\"\nT009,Vendor evaluation for ML platform,To Do,James Wong,Medium,Sprint 3,2026-05-05,Use Cases,\"Compare cloud ML platforms (AWS SageMaker, Azure ML, GCP Vertex AI)\"\nT010,Collect historical demand data,To Do,Priya Nair,High,Sprint 4,2026-05-12,Data Prep,\"Extract 2 years of demand data from ERP system\"\nT011,Data cleaning and preprocessing pipeline,To Do,Priya Nair,High,Sprint 4,2026-05-19,Data Prep,\"Build automated pipeline for data cleaning, normalization, feature engineering\"\nT012,Design demand forecasting model,To Do,Ravi Kumar,High,Sprint 4,2026-05-19,Model Dev,\"Select algorithm (LSTM, Prophet, XGBoost), define input features\"\nT013,Design route optimization model,To Do,Ravi Kumar,Medium,Sprint 5,2026-05-26,Model Dev,\"Graph-based optimization with constraints (time windows, vehicle capacity)\"\nT014,Build model training pipeline,To Do,Ravi Kumar,High,Sprint 5,2026-06-02,Model Dev,\"Automated training, validation, and model versioning\"\nT015,Deploy demand model to test environment,To Do,James Wong,High,Sprint 6,2026-06-09,Pilot,\"Deploy to staging, set up monitoring, define test scenarios\"\nT016,Run pilot with logistics team,To Do,Arjun Mehta,High,Sprint 6,2026-06-16,Pilot,\"2-week pilot with 3 logistics coordinators using demand forecasting predictions\"\nT017,Collect pilot feedback and metrics,To Do,Sarah Lin,High,Sprint 7,2026-06-23,Evaluation,\"Survey users, measure prediction accuracy, compare with manual forecasts\"\nT018,Iterate on model based on feedback,To Do,Ravi Kumar,Medium,Sprint 7,2026-06-30,Evaluation,\"Adjust features, retrain model, validate improvements\"\nT019,Prepare production deployment plan,To Do,James Wong,High,Sprint 8,2026-07-07,Deployment,\"Infrastructure scaling, rollback plan, monitoring setup\"\nT020,Staff training program,To Do,Sarah Lin,Medium,Sprint 8,2026-07-14,Deployment,\"Train 25 logistics staff on using AI-powered forecasting dashboard\"\nT021,Full production rollout,To Do,Arjun Mehta,High,Sprint 9,2026-07-21,Deployment,\"Go-live for demand forecasting across all 3 distribution centers\"\nT022,Set up continuous monitoring,To Do,Priya Nair,High,Sprint 9,2026-07-28,Monitoring,\"Model performance dashboards, drift detection alerts, retraining triggers\"\nT023,Project closure report,To Do,Arjun Mehta,Medium,Sprint 10,2026-08-04,Monitoring,\"Final report: outcomes vs targets, lessons learned, recommendations for Phase 2\"\nT024,Security review of AI infrastructure,Blocked,James Wong,High,Sprint 5,2026-05-26,Security,\"Penetration testing and vulnerability assessment - BLOCKED: waiting for security team availability\"\nT025,Legal review of data usage,In Progress,Sarah Lin,High,Sprint 3,2026-04-28,Compliance,\"Review data privacy compliance for using customer delivery data in ML models\"`;\n\n// ---------- Helpers ----------\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [], field = '', inQuotes = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (inQuotes) {\n      if (c === '\"' && text[i + 1] === '\"') { field += '\"'; i++; }\n      else if (c === '\"') inQuotes = false;\n      else field += c;\n    } else if (c === '\"') inQuotes = true;\n    else if (c === ',') { row.push(field); field = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(field); field = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else field += c;\n  }\n  row.push(field);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n  const [header, ...body] = rows;\n  return body.map((r) => Object.fromEntries(header.map((h, i) => [h.trim(), (r[i] ?? '').trim()])));\n}\n\nconst DAY = 86400000;\nconst toDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };\nconst fmt = (d) => d.toISOString().slice(0, 10);\nconst addDays = (d, n) => new Date(d.getTime() + n * DAY);\nconst daysBetween = (a, b) => Math.round((b - a) / DAY);\nconst countBy = (arr, key) => arr.reduce((acc, x) => ({ ...acc, [x[key]]: (acc[x[key]] ?? 0) + 1 }), {});\n\nconst asOf = toDate(cfg.asOfDate);\nconst projectStart = toDate(cfg.projectStartDate);\nconst upcomingEnd = addDays(asOf, Number(cfg.upcomingWindowDays));\nconst dueSoonEnd = addDays(asOf, Number(cfg.dueSoonDays));\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\n// ---------- Timeline: week numbers -> calendar dates ----------\nconst timeline = parseCsv(TIMELINE_CSV).map((p) => {\n  const start = addDays(projectStart, (Number(p.start_week) - 1) * 7);\n  const end = addDays(projectStart, Number(p.end_week) * 7 - 1);\n  const status = end < asOf ? 'Completed (by schedule)' : start > asOf ? 'Upcoming' : 'Current';\n  return {\n    phase: Number(p.phase),\n    phase_name: p.phase_name,\n    start_week: Number(p.start_week),\n    end_week: Number(p.end_week),\n    start_date: fmt(start),\n    end_date: fmt(end),\n    schedule_status: status,\n    key_activities: p.key_activities.split(';').map((s) => s.trim()).filter(Boolean),\n    milestones: p.milestones_deliverables.split(';').map((s) => s.trim()).filter(Boolean),\n  };\n});\n\n// Each milestone is due at the end of its phase.\nconst milestones = timeline.flatMap((p) => p.milestones.map((m) => ({\n  milestone: m,\n  phase: p.phase,\n  phase_name: p.phase_name,\n  due_week: p.end_week,\n  due_date: p.end_date,\n  days_from_as_of: daysBetween(asOf, toDate(p.end_date)),\n})));\n\n// ---------- Project outcome phrases ----------\n// Short verbatim phrases from the description (goals, use cases, capabilities). Agents cite these\n// from a fixed list instead of free-text quoting, so a citation can never be invented.\nconst LEAD = /^(and|or|including|include|includes|the company aims to|aims to|by leveraging|by|to|of|with|is embarking on an ai adoption initiative to|key goals include|this project will focus on|beginning with|followed by|will)\\s+/i;\nconst outcomePhrases = [...new Set(PROJECT_DESCRIPTION.split('\\n').slice(1).join(' ')\n  .split(/[.;,]|\\s+and\\s+(?=[a-z]+ing\\b|improv|reduc|lower|minim|uncov|drive|enhanc)/)\n  .map((s) => { let t = s.trim(), prev; do { prev = t; t = t.replace(LEAD, ''); } while (t !== prev); return t; })\n  .filter((s) => { const n = s.split(/\\s+/).length; return n >= 2 && n <= 9 && !/ABCDE|^This|^The /.test(s); }))];\nconst USE_CASES = ['demand forecasting', 'route optimization', 'inventory management', 'customer support']\n  .filter((u) => PROJECT_DESCRIPTION.toLowerCase().includes(u));\n\n// ---------- Risks ----------\nconst risks = parseCsv(RISKS_CSV);\n\n// ---------- Tasks ----------\nconst tasks = parseCsv(TASKS_CSV).map((t) => {\n  const due = toDate(t.due_date);\n  return { ...t, days_until_due: daysBetween(asOf, due) };\n});\nconst open = (t) => t.status !== 'Done';\n\nconst statusCounts = Object.fromEntries(STATUSES.map((s) => [s, tasks.filter((t) => t.status === s).length]));\nconst unknownStatuses = tasks.filter((t) => !STATUSES.includes(t.status)).map((t) => `${t.task_id}: ${t.status}`);\n\nconst sprintNames = [...new Set(tasks.map((t) => t.sprint))]\n  .sort((a, b) => Number(a.replace(/\\D/g, '')) - Number(b.replace(/\\D/g, '')));\nconst sprints = sprintNames.map((name) => {\n  const ts = tasks.filter((t) => t.sprint === name);\n  const dues = ts.map((t) => t.due_date).sort();\n  return {\n    sprint: name,\n    first_due: dues[0],\n    last_due: dues[dues.length - 1],\n    task_count: ts.length,\n    status_counts: Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length])),\n    task_ids: ts.map((t) => t.task_id),\n  };\n});\n// Current sprint = first sprint whose last due date has not passed.\nconst currentSprint = (sprints.find((s) => toDate(s.last_due) >= asOf) ?? sprints[sprints.length - 1]).sprint;\n\nconst brief = (t) => ({\n  task_id: t.task_id, task_name: t.task_name, status: t.status, assignee: t.assignee,\n  priority: t.priority, sprint: t.sprint, due_date: t.due_date, days_until_due: t.days_until_due,\n});\n\nconst blocked = tasks.filter((t) => t.status === 'Blocked').map((t) => ({ ...brief(t), description: t.description }));\nconst overdue = tasks.filter((t) => open(t) && toDate(t.due_date) < asOf).map(brief);\nconst dueSoon = tasks.filter((t) => open(t) && t.status !== 'Blocked'\n  && toDate(t.due_date) >= asOf && toDate(t.due_date) <= dueSoonEnd).map(brief);\n\nconst workload = Object.entries(countBy(tasks.filter(open), 'assignee'))\n  .map(([assignee, open_tasks]) => ({\n    assignee,\n    open_tasks,\n    open_high_priority: tasks.filter((t) => open(t) && t.assignee === assignee && t.priority === 'High').length,\n    in_progress: tasks.filter((t) => t.status === 'In Progress' && t.assignee === assignee).map((t) => t.task_id),\n  }))\n  .sort((a, b) => b.open_tasks - a.open_tasks);\n\nconst currentWeek = Math.floor(daysBetween(projectStart, asOf) / 7) + 1;\nconst currentPhase = timeline.find((p) => p.schedule_status === 'Current') ?? null;\n\nconst facts = {\n  as_of_date: fmt(asOf),\n  project_start_date: fmt(projectStart),\n  current_week: currentWeek,\n  total_weeks: Math.max(...timeline.map((p) => p.end_week)),\n  current_phase: currentPhase ? `Phase ${currentPhase.phase}: ${currentPhase.phase_name}` : 'None (outside timeline)',\n  current_sprint: currentSprint,\n  total_tasks: tasks.length,\n  status_counts: statusCounts,\n  completion_pct: Math.round((statusCounts.Done / tasks.length) * 100),\n  blocked_tasks: blocked,\n  overdue_tasks: overdue,\n  due_soon_tasks: dueSoon,\n  due_soon_window: `${fmt(asOf)} to ${fmt(dueSoonEnd)}`,\n  upcoming_milestones: milestones.filter((m) => m.days_from_as_of >= 0 && toDate(m.due_date) <= upcomingEnd),\n  upcoming_window: `${fmt(asOf)} to ${fmt(upcomingEnd)}`,\n  next_milestones_after_window: milestones.filter((m) => toDate(m.due_date) > upcomingEnd).slice(0, 2),\n  sprints,\n  workload,\n  risk_count: risks.length,\n  risk_categories: risks.map((r) => `${r.risk_id} ${r.category}`),\n  data_warnings: unknownStatuses.map((s) => `Unrecognised task status: ${s}`),\n};\n\nreturn [{\n  json: {\n    project: { name: PROJECT_NAME, description: PROJECT_DESCRIPTION.trim(), outcome_phrases: outcomePhrases, use_cases: USE_CASES },\n    timeline,\n    milestones,\n    risks,\n    tasks,\n    facts,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "a667d387-8f38-4f2b-a0f6-afb13a15f459",
+      "name": "Test Cases",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Baseline test dataset (eval_mira_inputs.txt) with machine-checkable expectations.\n// Emits one item per test listed in RUN – or, when started from the Chat Trigger, the chat message.\n\nconst incoming = $input.first()?.json ?? {};\nif (incoming.chatInput) {\n  return [{ json: { test_id: 'chat', query: incoming.chatInput, session_id: incoming.sessionId ?? null, checks: [] } }];\n}\n\nconst RUN = [\"T3\", \"T4\", \"T7\"];\nconst WITH_ROUTE = false; // full Mira workflow: also check the Orchestrator's route\nconst JUDGE_MATERIAL_MAX = null; // with the Fact-Check Judge: advisory max material claims (null = no judge)\n\n// Check types: status (value or list of accepted values) | judge_material_max | judge_min | phase_count | field (output field equals value) | grounded_min |\n// mentions_all / mentions_any / not_mentions (case-insensitive, in rendered output)\n// route: the agent the Orchestrator should pick (checked only when WITH_ROUTE).\nconst TESTS = [\n  { test_id: 'T1', query: 'Generate a project plan for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'planner',\n    checks: [{ type: 'status', value: 'PLAN' }, { type: 'phase_count', value: 8 }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T2', query: 'Generate a project plan for: \"We want to build a chatbot.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline', 'team'] }] },\n  { test_id: 'T3', query: 'Generate a risk assessment for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'risk',\n    checks: [{ type: 'status', value: 'ASSESSMENT' }, { type: 'field', field: 'risk_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 },\n      { type: 'mentions_any', value: ['logistics', 'route', 'forecast', 'delivery', 'inventory'] }] },\n  { test_id: 'T4', query: 'Generate a risk assessment for: \"New project starting soon.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline'] },\n      { type: 'not_mentions', value: ['R01', 'R02', 'Data Quality', 'Likelihood'] }] },\n  { test_id: 'T5', query: 'Generate a weekly status report using the sample task board data for Sprint 3.', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Sprint 3' },\n      { type: 'field', field: 'counts', value: 'Done 0 · In Progress 2 · Blocked 0 · To Do 2' },\n      { type: 'mentions_all', value: ['Shortlist AI use cases', 'Define success criteria for each use case', 'Vendor evaluation for ML platform', 'Legal review of data usage'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T6', query: 'Generate a weekly status report for: \"Things are going fine.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: ['NO_DATA', 'NEEDS_CLARIFICATION'] }, { type: 'mentions_all', value: ['no task data'] },\n      { type: 'not_mentions', value: ['%', 'T0'] }] },\n  { test_id: 'T7', query: 'What are the top 3 risks for the ABCDE Ltd project based on the risk data?', route: 'risk',\n    checks: [{ type: 'status', value: 'TOP_RISKS' }, { type: 'field', field: 'risk_count', value: 3 },\n      { type: 'field', field: 'assessed_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 }] },\n  { test_id: 'T8', query: 'Which tasks are blocked or at risk of missing their deadline based on the task board?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'blocked', value: 'T024' }, { type: 'field', field: 'overdue', value: 'T006' },\n      { type: 'mentions_all', value: ['T024', 'Security review of AI infrastructure', 'T006'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T9', query: 'Generate a project plan for a 2-week project with no details provided.', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'goal', 'deliverable'] }] },\n  { test_id: 'T10', query: 'Summarize the current project status: how many tasks are done, in progress, and to do?', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Whole project' },\n      { type: 'field', field: 'counts', value: 'Done 5 · In Progress 3 · Blocked 1 · To Do 16' }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T11', query: 'What milestones are coming up in the next 2 weeks based on the timeline?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'upcoming_count', value: 2 },\n      { type: 'mentions_all', value: ['Current systems audit report', 'Gap analysis report'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T12', query: 'Generate a stakeholder update email summarizing Sprint 2 progress.', route: 'comms',\n    checks: [{ type: 'status', value: 'EMAIL' }, { type: 'field', field: 'scope', value: 'Sprint 2' },\n      { type: 'mentions_all', value: ['Audit existing data infrastructure', 'Map current logistics workflows', 'Identify data gaps'] },\n      { type: 'not_mentions', value: ['Shortlist AI use cases', 'Legal review of data usage', 'Security review', 'Vendor evaluation', 'T007', 'T024', 'T025'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  // Extra robustness case (not in the baseline dataset).\n  { test_id: 'X1', query: 'What is the weather in Paris tomorrow?', route: 'fallback',\n    checks: [{ type: 'status', value: 'OUT_OF_SCOPE' }] },\n];\n\nreturn TESTS.filter((t) => RUN.includes(t.test_id)).map(({ route, ...t }) => ({\n  json: {\n    ...t,\n    checks: [\n      ...(WITH_ROUTE && route ? [{ type: 'field', field: 'route', value: route }] : []),\n      ...t.checks,\n      ...(JUDGE_MATERIAL_MAX !== null ? [{ type: 'judge_material_max', value: JUDGE_MATERIAL_MAX, advisory: true }] : []),\n    ],\n  },\n}));\n"
+      }
+    },
+    {
+      "id": "56006802-0309-424c-881e-eca9d318f912",
+      "name": "Risk Assessor: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Risk Assessor – builds the OpenAI request for each incoming request item.\n// The model only rates and links register risks by ID (one schema key per risk); risk text and\n// mitigations are copied from project_risks.csv by code, so no risk can be invented.\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Risk Assessor inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You assess a project's risks using only its risk register and project data, and you refuse to assess when there is no project data.\n\nINPUT\n- USER REQUEST: what the PM asked for.\n- PROJECT DATA (optional): <project_description>, <schedule> (phases with schedule status), <task_board> (tasks with status and due dates, plus blocked/overdue lists) and <risk_register> (risks R01..Rnn). If PROJECT DATA is absent, the only information you have is the USER REQUEST text.\n\nDECISION – choose exactly one status\n1. PROJECT DATA is absent → status \"NEEDS_CLARIFICATION\". A risk assessment needs a known project; never produce risks from a one-line request.\n2. PROJECT DATA is present and the PM asks for the top / most important / biggest N risks → status \"TOP_RISKS\", requested_count = N (default 3).\n3. PROJECT DATA is present otherwise → status \"ASSESSMENT\", requested_count = number of risks in the register.\n\nRULES FOR AN ASSESSMENT (both TOP_RISKS and ASSESSMENT) – hallucination guardrails\n- summary: 2–3 sentences on the overall risk picture for this project at its current phase. Do not number or rank risks in the summary; ranking is computed separately.\n- risks has one entry per register risk ID. Fill in EVERY entry, also when the PM asks only for the top N – the top N are selected by code from your ratings. Do not create risks that are not in the register.\n- likelihood and impact (High / Medium / Low) must reflect THIS project: its logistics domain, its use cases (demand forecasting, route optimization, inventory management, customer support), the current phase, and live task-board signals. Do not rate everything High.\n- If any related task is Blocked or Overdue, likelihood must be Medium or High – the problem is already showing.\n- priority_rank: your overall order 1..n (1 = most urgent), unique per risk. Use it to break ties between equal ratings.\n- rationale: 1–2 sentences on why this risk matters for this project now. Cite a specific project fact – a use case, goal, phase, or task ID. Never use generic statements such as \"this is common in AI projects\".\n- evidence_quote: choose from the allowed list the project goal, use case or capability this risk threatens most (e.g. \"route optimization\", \"reducing delivery delays by 15%\"). Prefer the most specific phrase.\n- affected_use_cases: the 1–2 logistics use cases this risk would hit HARDEST, so the PM can see where each risk bites (e.g. data-quality risk → demand forecasting, inventory management; legacy-integration risk → route optimization). Do not list every use case for every risk. Use an empty array only if the risk is truly organisation-wide.\n- related_task_ids: task IDs from <task_board> that are signals for this risk (e.g. a blocked security review → security risk). Empty array if none. Never use IDs that are not on the board.\n- exposed_phase: the phase number from <schedule> where this risk is most likely to materialise.\n- owner_role: who on the cross-functional task force should own it.\n- next_step: one full sentence (8–30 words) stating a concrete action that applies the register's mitigation to THIS project – what to do, and on which use case, data, system or task. Do not copy the mitigation text and do not just name a phase. Example for a data risk: \"Run a data-quality audit of historical delivery and inventory records and close the gaps found in T006.\"\n- next_step_before_phase: the phase number by whose start the next step must be done. It must be the current phase or a later one.\n\nRULES FOR NEEDS_CLARIFICATION\n- Set assessment to null. Do NOT list risks, generic or otherwise.\n- reason: one sentence on why risks cannot be assessed yet.\n- known_information: what the request does state (may be empty).\n- missing_information: always cover project scope and objectives, industry/domain, timeline and current phase, team size/roles, technology and systems involved, budget, and key stakeholders/dependencies – unless explicitly given.\n- questions: 4–7 specific questions the PM can answer to unblock the assessment.\n\nOUTPUT\nReturn JSON matching the provided schema. Unused branch must be null.`;\n\nconst riskIds = kb.risks.map((r) => r.risk_id);\nconst taskIds = kb.tasks.map((t) => t.task_id);\nconst phaseNumbers = kb.timeline.map((p) => p.phase);\nconst level = { type: 'string', enum: ['High', 'Medium', 'Low'] };\nconst strings = { type: 'array', items: { type: 'string' } };\n\n// One required key per register risk: strict mode then forces the model to rate all of them.\nconst riskRating = {\n  type: 'object', additionalProperties: false,\n  required: ['likelihood', 'impact', 'priority_rank', 'rationale', 'evidence_quote', 'affected_use_cases',\n    'related_task_ids', 'exposed_phase', 'owner_role', 'next_step', 'next_step_before_phase'],\n  properties: {\n    likelihood: level,\n    impact: level,\n    priority_rank: { type: 'integer' },\n    rationale: { type: 'string' },\n    // Verbatim description phrases extracted by the Knowledge Base – a citation can't be invented.\n    evidence_quote: { type: 'string', enum: kb.project.outcome_phrases },\n    affected_use_cases: { type: 'array', items: { type: 'string', enum: kb.project.use_cases } },\n    related_task_ids: { type: 'array', items: { type: 'string', enum: taskIds } },\n    exposed_phase: { type: 'integer', enum: phaseNumbers },\n    owner_role: { type: 'string', enum: ['Data scientists', 'IT professionals', 'Business stakeholders', 'Cross-functional task force'] },\n    next_step: { type: 'string' },\n    next_step_before_phase: { type: 'integer', enum: phaseNumbers },\n  },\n};\n\nconst RESPONSE_FORMAT = {\n  type: 'json_schema',\n  json_schema: {\n    name: 'risk_output',\n    strict: true,\n    schema: {\n      type: 'object', additionalProperties: false, required: ['status', 'clarification', 'assessment'],\n      properties: {\n        status: { type: 'string', enum: ['ASSESSMENT', 'TOP_RISKS', 'NEEDS_CLARIFICATION'] },\n        clarification: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['reason', 'known_information', 'missing_information', 'questions'],\n            properties: { reason: { type: 'string' }, known_information: strings, missing_information: strings, questions: strings },\n          }],\n        },\n        assessment: {\n          anyOf: [{ type: 'null' }, {\n            type: 'object', additionalProperties: false,\n            required: ['requested_count', 'summary', 'risks'],\n            properties: {\n              requested_count: { type: 'integer' },\n              summary: { type: 'string' },\n              risks: {\n                type: 'object', additionalProperties: false, required: riskIds,\n                properties: Object.fromEntries(riskIds.map((id) => [id, riskRating])),\n              },\n            },\n          }],\n        },\n      },\n    },\n  },\n};\n\n// The Orchestrator decides this (uses_project_on_file); the regex is the fallback for the standalone step workflows.\nconst refersToProject = (q) => /ABCDE|AI Adoption Project/i.test(q);\n\nfunction projectDataBlock() {\n  const f = kb.facts;\n  const schedule = kb.timeline.map((p) =>\n    `Phase ${p.phase}: ${p.phase_name} | ${p.start_date} to ${p.end_date} | ${p.schedule_status}`).join('\\n');\n  const tasks = kb.tasks.map((t) =>\n    `${t.task_id} | ${t.task_name} | ${t.status} | ${t.priority} | ${t.sprint} | due ${t.due_date}`).join('\\n');\n  const listIds = (ts) => (ts.length ? ts.map((t) => `${t.task_id} ${t.task_name}`).join('; ') : 'none');\n  const register = kb.risks.map((r) =>\n    `${r.risk_id} | ${r.category} | ${r.risk_challenge} | Impact: ${r.impact} | Mitigation: ${r.mitigation_strategy}`).join('\\n');\n  return `PROJECT DATA – ${kb.project.name}\\n` +\n    `<project_description>\\n${kb.project.description}\\n</project_description>\\n` +\n    `<schedule>\\nAs of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}); current phase: ${f.current_phase}.\\n${schedule}\\n</schedule>\\n` +\n    `<task_board>\\nTask | Name | Status | Priority | Sprint | Due\\n${tasks}\\n` +\n    `Blocked: ${listIds(f.blocked_tasks)}\\nOverdue: ${listIds(f.overdue_tasks)}\\n</task_board>\\n` +\n    `<risk_register>\\n${register}\\n</risk_register>`;\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const usesProjectData = req.uses_project_on_file ?? refersToProject(req.query);\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\n` +\n    (usesProjectData ? projectDataBlock() : 'PROJECT DATA: none provided.');\n  const messages = [\n    { role: 'system', content: SYSTEM_PROMPT },\n    { role: 'user', content: userContent },\n  ];\n  return {\n    json: {\n      ...req,\n      agent: 'Risk Assessor',\n      uses_project_data: usesProjectData,\n      source_text: usesProjectData ? kb.project.description : req.query,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: Number(cfg.maxTokens),\n        response_format: RESPONSE_FORMAT,\n        messages,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "516f9fbc-67b1-4c10-b9b5-8fc92312c4d6",
+      "name": "OpenAI: Risk Assessor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "18324e62-be19-47e1-8161-9ad2fae696e6",
+      "name": "Risk Assessor: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Risk Assessor – parses the model output, verifies it against the risk register and task board,\n// ranks risks in code (likelihood × impact, model rank as tie-break), renders Markdown,\n// and describes the LangSmith trace for this request.\n\nconst kb = $('Knowledge Base').first().json;\nconst requests = $('Risk Assessor: Build Prompt').all();\n\nconst SCORE = { High: 3, Medium: 2, Low: 1 };\nconst register = new Map(kb.risks.map((r) => [r.risk_id, r]));\nconst tasksById = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst phases = new Map(kb.timeline.map((p) => [p.phase, p]));\n\nconst norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();\n\n// Quote must appear as a contiguous word sequence in the source, tolerating inflection only\n// (\"reduce\" ≈ \"reducing\"): each word is compared on its first 5 letters.\nconst stems = (s) => norm(s).split(' ').filter(Boolean).map((w) => w.slice(0, 5));\nfunction quoteInSource(quote, source) {\n  const q = stems(quote), src = stems(source);\n  if (!q.length) return false;\n  for (let i = 0; i + q.length <= src.length; i++) {\n    if (q.every((w, j) => src[i + j] === w)) return true;\n  }\n  return false;\n}\nconst cell = (s) => String(s ?? '').replace(/\\|/g, '/').replace(/\\n/g, ' ');\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None._');\n\n// Every assessed risk must exist in the register exactly once, cite the description verbatim,\n// and link only to real tasks and phases.\nfunction groundingCheck(a, req) {\n  const issues = [];\n  let checked = 0, grounded = 0;\n  const seen = new Set();\n\n  for (const r of a.risks) {\n    checked++;\n    const problems = [];\n    if (!register.has(r.risk_id)) problems.push('not in register');\n    if (seen.has(r.risk_id)) problems.push('duplicate');\n    seen.add(r.risk_id);\n    if (!quoteInSource(r.evidence_quote, req.source_text)) problems.push(`quote not in description → “${r.evidence_quote}”`);\n    const unknownTasks = r.related_task_ids.filter((id) => !tasksById.has(id));\n    if (unknownTasks.length) problems.push(`unknown tasks ${unknownTasks.join(', ')}`);\n    if (!phases.has(r.exposed_phase)) problems.push(`unknown phase ${r.exposed_phase}`);\n    if (problems.length) issues.push(`${r.risk_id}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  const missing = kb.risks.map((r) => r.risk_id).filter((id) => !seen.has(id));\n  if (missing.length) issues.push(`register risks not assessed: ${missing.join(', ')}`);\n\n  return { checked, grounded, score: checked ? grounded / checked : 1, issues };\n}\n\n// Review checks: ratings must agree with the task board (a blocked or overdue linked task means the\n// risk is already showing); next steps must be a real action, not the register text or a bare phase\n// reference; and their deadline must not already be in the past.\nconst overdueIds = new Set(kb.facts.overdue_tasks.map((t) => t.task_id));\nconst currentPhase = kb.timeline.find((p) => p.schedule_status === 'Current')?.phase ?? 1;\nconst phaseWords = new Set(kb.timeline.flatMap((p) => norm(p.phase_name).split(' ')).concat(['before', 'by', 'phase', 'start', 'of', 'the']));\nfunction reviewCheck(risks) {\n  const allCases = kb.project.use_cases.length;\n  const undifferentiated = risks.filter((r) => r.affected_use_cases.length >= allCases).length;\n  const domain = !risks.some((r) => r.affected_use_cases.length) ? ['no risk is tied to a logistics use case']\n    : undifferentiated > risks.length / 2 ? [`${undifferentiated}/${risks.length} risks list every use case – not differentiated`] : [];\n  return domain.concat(risks.flatMap((r) => {\n    const issues = [];\n    const live = r.related_task_ids.filter((id) => tasksById.get(id)?.status === 'Blocked' || overdueIds.has(id));\n    if (r.likelihood === 'Low' && live.length) issues.push(`${r.risk_id}: likelihood Low but linked task ${live.join(', ')} is blocked/overdue`);\n    const words = norm(r.next_step).split(' ').filter(Boolean);\n    const content = words.filter((w) => !phaseWords.has(w) && !/^\\d+$/.test(w));\n    const mitigation = new Set(norm(register.get(r.risk_id)?.mitigation_strategy).split(' '));\n    const copied = words.length && words.filter((w) => mitigation.has(w)).length / words.length > 0.8;\n    if (content.length < 5) issues.push(`${r.risk_id}: next step is not an action (“${r.next_step}”)`);\n    else if (copied) issues.push(`${r.risk_id}: next step copies the register mitigation`);\n    if (r.next_step_before_phase < currentPhase) issues.push(`${r.risk_id}: next step deadline Phase ${r.next_step_before_phase} has already passed`);\n    return issues;\n  }));\n}\n\nconst useCases = (r) => (r.affected_use_cases.length ? r.affected_use_cases.join(', ') : 'Organisation-wide');\nconst nextStep = (r) => `${r.next_step} _(before ${phaseLabel(r.next_step_before_phase)})_`;\n\n// Deterministic ranking: score desc, then impact, then the model's priority_rank.\nfunction rank(risks) {\n  return [...risks]\n    .map((r) => ({ ...r, score: SCORE[r.likelihood] * SCORE[r.impact] }))\n    .sort((x, y) => y.score - x.score || SCORE[y.impact] - SCORE[x.impact] || x.priority_rank - y.priority_rank)\n    .map((r, i) => ({ ...r, rank: i + 1 }));\n}\n\nconst signals = (r) => (r.related_task_ids.length\n  ? r.related_task_ids.map((id) => `${id} ${tasksById.get(id)?.task_name ?? '?'} (${tasksById.get(id)?.status ?? '?'})`).join('; ')\n  : '—');\nconst phaseLabel = (n) => (phases.has(n) ? `Phase ${n}: ${phases.get(n).phase_name}` : `Phase ${n}`);\n\nfunction renderAssessment(status, a, ranked, grounding, review) {\n  const top = status === 'TOP_RISKS';\n  const shown = top ? ranked.slice(0, Math.max(1, a.requested_count)) : ranked;\n  const f = kb.facts;\n  const header = [\n    `# ${top ? `Top ${shown.length} Risks` : 'Risk Assessment'} — ${kb.project.name}`,\n    `_Generated by Mira · as of ${f.as_of_date} (week ${f.current_week}, ${f.current_phase}) · Sources: project_risks.csv, project_description.txt, sample_task_board.csv, project_timeline.csv_`,\n    '## Summary', a.summary,\n  ];\n\n  const body = top\n    ? shown.map((r) => {\n      const reg = register.get(r.risk_id);\n      return [\n        `### ${r.rank}. ${r.risk_id} — ${reg.category}: ${reg.risk_challenge}`,\n        `**Likelihood:** ${r.likelihood} · **Impact:** ${r.impact} · **Score:** ${r.score}/9 · **Most exposed:** ${phaseLabel(r.exposed_phase)} · **Owner:** ${r.owner_role}`,\n        `**Why it matters now:** ${r.rationale}`,\n        `_Threatens: “${r.evidence_quote}” · Use cases affected: ${useCases(r)}_`,\n        `**Impact if it happens (register):** ${reg.impact}`,\n        `**Live signals on the task board:** ${signals(r)}`,\n        `**Mitigation (register):** ${reg.mitigation_strategy}`,\n        `**Recommended next step:** ${nextStep(r)}`,\n      ].join('\\n\\n');\n    })\n    : [\n      '## Risk register (ranked by likelihood × impact)',\n      ['| # | ID | Category | Risk | L | I | Score | Use cases affected | Most exposed | Live signals | Owner |',\n        '|---|---|---|---|---|---|---|---|---|---|---|',\n        ...shown.map((r) => {\n          const reg = register.get(r.risk_id);\n          return `| ${r.rank} | ${r.risk_id} | ${cell(reg.category)} | ${cell(reg.risk_challenge)} | ${r.likelihood} | ${r.impact} | ${r.score} | ${cell(useCases(r))} | ${cell(phaseLabel(r.exposed_phase))} | ${cell(signals(r))} | ${r.owner_role} |`;\n        })].join('\\n'),\n      '## Why each risk matters & what to do',\n      shown.map((r) => {\n        const reg = register.get(r.risk_id);\n        return `**${r.rank}. ${r.risk_id} ${reg.category}** — ${r.rationale}  \\n` +\n          `_Threatens: “${r.evidence_quote}”_  \\n` +\n          `Impact (register): ${reg.impact}  \\n` +\n          `Mitigation (register): ${reg.mitigation_strategy}  \\n` +\n          `Next step: ${nextStep(r)}`;\n      }).join('\\n\\n'),\n    ];\n\n  return [\n    ...header,\n    ...body,\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} risks traced to the register and source` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n    `Review checks (task-board consistency, actionable next steps):` +\n      (review.length ? `\\n${review.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n  ].join('\\n\\n');\n}\n\nfunction renderClarification(c) {\n  return [\n    '## More information needed before I can assess risks',\n    c.reason,\n    '**What I have so far**', list(c.known_information),\n    '**What is missing**', list(c.missing_information),\n    '**Please answer these questions**',\n    c.questions.map((q, i) => `${i + 1}. ${q}`).join('\\n'),\n    '_No risks were listed, to avoid inventing project-specific risks without project data._',\n  ].join('\\n\\n');\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const content = body.choices?.[0]?.message?.content ?? '';\n\n  let output = null, parseError = null;\n  try { output = JSON.parse(content); } catch (e) { parseError = e.message; }\n\n  let markdown, grounding = null, review = [], ranked = [], shownCount = 0;\n  const status = output?.status ?? 'ERROR';\n  if (!output) {\n    markdown = `⚠ Risk Assessor returned unparseable output (${parseError}).\\n\\n${content}`;\n  } else if (status !== 'NEEDS_CLARIFICATION' && output.assessment) {\n    // Schema returns { R01: {...}, R02: {...} }; flatten to a list keyed by risk_id.\n    const a = { ...output.assessment, risks: Object.entries(output.assessment.risks).map(([risk_id, r]) => ({ risk_id, ...r })) };\n    grounding = groundingCheck(a, req);\n    review = reviewCheck(a.risks);\n    ranked = rank(a.risks);\n    shownCount = status === 'TOP_RISKS' ? Math.min(ranked.length, Math.max(1, a.requested_count)) : ranked.length;\n    markdown = renderAssessment(status, a, ranked, grounding, review);\n  } else {\n    markdown = renderClarification(output.clarification ?? { reason: 'Insufficient detail.', known_information: [], missing_information: [], questions: [] });\n  }\n\n  // Model latency from OpenAI's header gives accurate per-call timing even when items run in sequence.\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const topRisks = ranked.slice(0, shownCount).map((r) => `${r.risk_id} (${r.likelihood}/${r.impact})`);\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: req.uses_project_data,\n      risk_count: shownCount,\n      assessed_count: ranked.length,\n      top_risks: topRisks,\n      grounding,\n      review,\n      review_issue_count: review.length,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'risk', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, status, uses_project_data: req.uses_project_data, groundedness: grounding?.score ?? null, as_of_date: kb.facts.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { status, uses_project_data: req.uses_project_data },\n            outputs: grounding ? { ...grounding, review, ranking: ranked.map((r) => `${r.rank}. ${r.risk_id} score ${r.score}`) } : { skipped: 'no assessment generated' },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "62f6cb6c-1b17-49cd-8425-cfd97d9a183b",
+      "name": "LangSmith: Build Trace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Reusable: converts each item's `trace` descriptor into a LangSmith /runs/batch payload.\n// Descriptor: { name, start_time, end_time, inputs, outputs, tags, metadata,\n//               children: [{ name, run_type, start_time, end_time, inputs, outputs, model?, temperature? }] }\n\nconst cfg = $('Config').first().json;\n\n// UUID v7 (time-ordered), which LangSmith expects for run IDs.\nfunction uuidv7(ms) {\n  const r = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');\n  const ts = ms.toString(16).padStart(12, '0');\n  const variant = '89ab'[Math.floor(Math.random() * 4)];\n  return `${ts.slice(0, 8)}-${ts.slice(8, 12)}-7${r(3)}-${variant}${r(3)}-${r(12)}`;\n}\n\n// LangSmith dotted_order segment: YYYYMMDDTHHMMSSffffffZ + run id\nconst dottedTs = (iso) => iso.replace(/[-:]/g, '').replace('.', '').replace('Z', '000Z');\n\nfunction usageMetadata(outputs) {\n  const u = outputs?.usage ?? {};\n  return { input_tokens: u.prompt_tokens ?? 0, output_tokens: u.completion_tokens ?? 0, total_tokens: u.total_tokens ?? 0 };\n}\n\nreturn $input.all().map(({ json }) => {\n  const t = json.trace;\n  const rootStart = Date.parse(t.start_time);\n  const traceId = uuidv7(rootStart);\n  const rootDotted = dottedTs(t.start_time) + traceId;\n\n  const root = {\n    id: traceId,\n    trace_id: traceId,\n    dotted_order: rootDotted,\n    name: t.name,\n    run_type: 'chain',\n    inputs: t.inputs,\n    outputs: t.outputs,\n    start_time: t.start_time,\n    end_time: t.end_time,\n    session_name: cfg.langsmithProject,\n    tags: t.tags,\n    extra: { metadata: { ...t.metadata, n8n_execution_id: $execution.id } },\n  };\n\n  // Children start strictly after the root (+1 ms each) so dotted_order stays monotonic.\n  const children = (t.children ?? []).map((c, idx) => {\n    const startMs = Math.max(Date.parse(c.start_time), rootStart + idx + 1);\n    const start = new Date(startMs).toISOString();\n    const end = new Date(Math.max(Date.parse(c.end_time), startMs)).toISOString();\n    const id = uuidv7(startMs);\n    const run = {\n      id,\n      trace_id: traceId,\n      parent_run_id: traceId,\n      dotted_order: `${rootDotted}.${dottedTs(start)}${id}`,\n      name: c.name,\n      run_type: c.run_type,\n      inputs: c.inputs,\n      outputs: c.outputs,\n      start_time: start,\n      end_time: end,\n      session_name: cfg.langsmithProject,\n    };\n    if (c.run_type === 'llm') {\n      run.outputs = { ...c.outputs, usage_metadata: usageMetadata(c.outputs) };\n      run.extra = {\n        metadata: { ls_provider: 'openai', ls_model_name: c.model, ls_model_type: 'chat', ls_temperature: c.temperature },\n        invocation_params: { model: c.model, temperature: c.temperature },\n      };\n    }\n    return run;\n  });\n\n  return { json: { test_id: json.test_id, trace_id: traceId, batch: { post: [root, ...children] } } };\n});\n"
+      }
+    },
+    {
+      "id": "c7413c81-79d2-47b5-90d9-43e1f4c7cb19",
+      "name": "LangSmith: Log Trace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/runs/batch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.batch) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "66a0478f-5162-4aa3-8de4-790bae463373",
+      "name": "Test Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Scores each agent output against its test's expectations (see Test Cases node).\n\nconst outputs = $('Risk Assessor: Format Output').all().map((i) => i.json);\nconst traceIds = $('LangSmith: Build Trace').all().map((i) => i.json.trace_id);\n\nfunction evaluate(check, out) {\n  const text = out.markdown.toLowerCase();\n  switch (check.type) {\n    case 'status':\n      return [[].concat(check.value).includes(out.status), `status ${out.status}`];\n    case 'phase_count':\n      return [out.phase_count === check.value, `${out.phase_count} phases`];\n    case 'field':\n      return [out[check.field] === check.value, `${check.field} = ${JSON.stringify(out[check.field])}`];\n    case 'judge_material_max': {\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      const claims = out.judge?.unsupported_claims ?? [];\n      const material = claims.filter((c) => c.severity === 'material').length;\n      return [out.judge_score !== null && material <= check.value, `fact-check ${out.judge_score ?? '–'}/5 · ${material} material, ${claims.length - material} minor`];\n    }\n    case 'judge_min':\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      return [(out.judge_score ?? 0) >= check.value, `fact-check ${out.judge_score ?? '–'}/5${out.unsupported_count ? ` (${out.unsupported_count} unsupported)` : ''}`];\n    case 'grounded_min': {\n      const score = out.grounding?.score ?? 0;\n      return [score >= check.value, `groundedness ${(score * 100).toFixed(0)}%`];\n    }\n    case 'mentions_all': {\n      const missing = check.value.filter((term) => !text.includes(term.toLowerCase()));\n      return [missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `mentions ${check.value.join(', ')}`];\n    }\n    case 'mentions_any': {\n      const hit = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [hit.length > 0, hit.length ? `mentions ${hit.join(', ')}` : `none of: ${check.value.join(', ')}`];\n    }\n    case 'not_mentions': {\n      const found = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [found.length === 0, found.length ? `should not mention: ${found.join(', ')}` : 'no forbidden terms'];\n    }\n    default:\n      return [false, `unknown check ${check.type}`];\n  }\n}\n\nreturn outputs.map((out, i) => {\n  // Advisory checks (the LLM judge, ~50% measured precision) are shown as INFO and never decide the verdict.\n  const results = (out.checks ?? []).map((c) => {\n    const [pass, detail] = evaluate(c, out);\n    return `${c.advisory ? 'INFO' : pass ? 'PASS' : 'FAIL'} – ${c.type}: ${detail}${c.advisory && !pass ? ' (review)' : ''}`;\n  });\n  const failed = results.filter((r) => r.startsWith('FAIL')).length;\n  const graded = results.filter((r) => !r.startsWith('INFO')).length;\n  return {\n    json: {\n      test_id: out.test_id,\n      verdict: results.length === 0 ? 'NO CHECKS' : failed === 0 ? 'PASS' : 'FAIL',\n      checks: results,\n      checks_passed: graded - failed,\n      checks_total: graded,\n      status: out.status,\n      tokens: out.usage.total_tokens,\n      route: out.route,\n      expected_route: (out.checks ?? []).find((c) => c.type === 'field' && c.field === 'route')?.value ?? null,\n      groundedness: out.grounding?.score ?? null,\n      judge_score: out.judge_score,\n      judge_material: out.judge_skipped ? null : (out.judge?.unsupported_claims ?? []).filter((c) => c.severity === 'material').length,\n      query: out.query,\n      started_at: out.started_at_trace ?? null,\n      ended_at: out.ended_at_trace ?? null,\n      unsupported_claims: (out.judge?.unsupported_claims ?? []).map((c) => c.claim),\n      langsmith_trace_id: traceIds[i],\n      response: out.markdown,\n      output: out.markdown, // shown as the reply when Mira runs from the Chat Trigger\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "2899a941-5281-4adc-a50b-5eedb46d69c3",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -340
+      ],
+      "parameters": {
+        "width": 780,
+        "height": 260,
+        "content": "## Mira – Step 4: Risk Assessor (T3, T4, T7)\n1. **OpenAI: Risk Assessor** → select your *OpenAI* credential.\n2. **LangSmith: Log Trace** → select your *LangSmith* Header Auth credential.\n3. **Execute workflow** → open **Test Results** for PASS/FAIL, checks and the rendered `response`.\n4. LangSmith project **mira** → 3 traces tagged `risk` + T3/T4/T7 (*Risk Assessor* llm + *Grounding Check*).\nThe model may only rate/link register risks by ID; risk text, mitigations and ranking come from code."
+      }
+    }
+  ],
+  "connections": {
+    "Run Risk Tests": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Risk Assessor: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessor: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Risk Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Risk Assessor": {
+      "main": [
+        [
+          {
+            "node": "Risk Assessor: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Assessor: Format Output": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Build Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Build Trace": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Log Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Log Trace": {
+      "main": [
+        [
+          {
+            "node": "Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

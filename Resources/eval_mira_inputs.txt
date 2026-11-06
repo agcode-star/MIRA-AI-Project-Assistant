@@ -1,0 +1,17 @@
+Mira - Baseline Test Dataset for Core Capabilities
+=============================================================
+Run each input through your Mira pipeline.
+Check the output against the "Expected Output Must Contain" in the problem statement.
+
+T1: Generate a project plan for the AI Adoption Project at ABCDE Ltd. Use the provided project description.
+T2: Generate a project plan for: "We want to build a chatbot." (vague input)
+T3: Generate a risk assessment for the AI Adoption Project at ABCDE Ltd. Use the provided project description.
+T4: Generate a risk assessment for: "New project starting soon." (vague input)
+T5: Generate a weekly status report using the sample task board data for Sprint 3.
+T6: Generate a weekly status report for: "Things are going fine." (no task data)
+T7: What are the top 3 risks for the ABCDE Ltd project based on the risk data?
+T8: Which tasks are blocked or at risk of missing their deadline based on the task board?
+T9: Generate a project plan for a 2-week project with no details provided.
+T10: Summarize the current project status: how many tasks are done, in progress, and to do?
+T11: What milestones are coming up in the next 2 weeks based on the timeline?
+T12: Generate a stakeholder update email summarizing Sprint 2 progress.

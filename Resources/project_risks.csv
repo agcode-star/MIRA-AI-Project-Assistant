@@ -1,0 +1,11 @@
+risk_id,category,risk_challenge,impact,mitigation_strategy
+R01,Data Quality & Availability,Incomplete or unstructured data,Poor model performance and inaccurate outcomes,Perform early data audits and implement robust data governance
+R02,Integration Issues,Difficulty integrating AI with legacy systems,Delays in deployment and operational disruptions,Plan integration roadmap and use APIs/middleware
+R03,Talent & Skills Gap,Lack of internal AI/ML expertise,Overreliance on external vendors and slow progress,Provide staff training and hire specialized talent
+R04,Change Resistance,Employees resist adopting AI-driven workflows,Low adoption and reduced ROI,Strong change management and early engagement
+R05,Ethical & Legal Concerns,Risks of biased models or data privacy violations,Legal repercussions and reputational damage,Involve legal early and implement fairness checks
+R06,Cost Overruns,Underestimation of AI development costs,Budget constraints and project delays,Set realistic budget and build in contingency funds
+R07,Unrealistic Expectations,Stakeholders expect immediate ROI,Disillusionment and loss of support,Align expectations and show quick wins
+R08,Model Performance Drift,AI models lose accuracy over time,Incorrect decisions and trust erosion,Regular retraining cycles and monitoring dashboards
+R09,Security Vulnerabilities,AI models targeted by adversarial attacks,Data breaches and operational risks,Adopt AI security best practices and penetration testing
+R10,Vendor Lock-in,Overdependence on a specific AI platform,Flexibility loss and future switching costs,Favor open standards and negotiate flexible vendor terms

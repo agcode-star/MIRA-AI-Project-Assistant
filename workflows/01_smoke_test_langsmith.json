@@ -1,0 +1,252 @@
+{
+  "name": "Mira – Step 1: Smoke Test (OpenAI → LangSmith)",
+  "nodes": [
+    {
+      "id": "d37f9150-7cd6-40ca-a7b8-19d31a5de757",
+      "name": "Run Smoke Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "437f7d7a-65bc-4783-bd64-e29b06f324c5",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b8c73dfe-6c4d-4688-99b0-bf152f4edd96",
+              "name": "model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "eafd770c-800d-4ae5-a8fb-cb73819ad71b",
+              "name": "langsmithProject",
+              "value": "mira",
+              "type": "string"
+            },
+            {
+              "id": "5bec3887-925d-4a4f-a750-c81da29df60d",
+              "name": "langsmithEndpoint",
+              "value": "https://api.smith.langchain.com",
+              "type": "string"
+            },
+            {
+              "id": "46a4dfc7-0efc-407a-81b4-7de087fd0b09",
+              "name": "asOfDate",
+              "value": "2026-04-24",
+              "type": "string"
+            },
+            {
+              "id": "a1d755c5-16eb-4eb4-ab54-687c7e6e6b08",
+              "name": "userQuery",
+              "value": "Introduce yourself and say what you can help a PM with.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3bb2e9f2-4f68-4b39-bf1d-88633bddf262",
+      "name": "Start Trace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Prepares the OpenAI request plus LangSmith run IDs/timestamps for this execution.\nconst cfg = $('Config').first().json;\n\n// UUID v7 (time-ordered), which LangSmith expects for run IDs.\nfunction uuidv7(ms = Date.now()) {\n  const r = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');\n  const ts = ms.toString(16).padStart(12, '0');\n  const variant = '89ab'[Math.floor(Math.random() * 4)];\n  return `${ts.slice(0, 8)}-${ts.slice(8, 12)}-7${r(3)}-${variant}${r(3)}-${r(12)}`;\n}\n\nconst now = Date.now();\nconst messages = [\n  { role: 'system', content: 'You are Mira, an AI project intelligence assistant for PMs/TPMs at Nexora. Reply in one short sentence.' },\n  { role: 'user', content: cfg.userQuery },\n];\n\nreturn [{\n  json: {\n    traceId: uuidv7(now),\n    llmRunId: uuidv7(now + 1),\n    startTime: new Date(now).toISOString(),\n    llmStartTime: new Date(now + 1).toISOString(),\n    query: cfg.userQuery,\n    model: cfg.model,\n    project: cfg.langsmithProject,\n    asOfDate: cfg.asOfDate,\n    openaiRequest: { model: cfg.model, temperature: 0.2, messages },\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "ed4e6468-4e6b-4b61-a417-69dca9542277",
+      "name": "OpenAI: Chat Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "d26b130d-64ab-42a2-9099-7cd7f480fd40",
+      "name": "Build LangSmith Runs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Converts the OpenAI response into a LangSmith trace: root chain run + child llm run.\nconst ctx = $('Start Trace').first().json;\nconst resp = $input.first().json;\nconst endTime = new Date().toISOString();\n\n// LangSmith dotted_order segment: YYYYMMDDTHHMMSSffffffZ + run id\nconst dottedTs = (iso) => iso.replace(/[-:]/g, '').replace('.', '').replace('Z', '000Z');\n\nconst answer = resp.choices?.[0]?.message?.content ?? '';\nconst usage = resp.usage ?? {};\nconst usageMetadata = {\n  input_tokens: usage.prompt_tokens ?? 0,\n  output_tokens: usage.completion_tokens ?? 0,\n  total_tokens: usage.total_tokens ?? 0,\n};\n\nconst rootDotted = dottedTs(ctx.startTime) + ctx.traceId;\n\nconst root = {\n  id: ctx.traceId,\n  trace_id: ctx.traceId,\n  dotted_order: rootDotted,\n  name: 'Mira',\n  run_type: 'chain',\n  inputs: { query: ctx.query },\n  outputs: { answer },\n  start_time: ctx.startTime,\n  end_time: endTime,\n  session_name: ctx.project,\n  tags: ['mira', 'step1-smoke-test'],\n  extra: { metadata: { as_of_date: ctx.asOfDate, n8n_execution_id: $execution.id } },\n};\n\nconst llm = {\n  id: ctx.llmRunId,\n  trace_id: ctx.traceId,\n  parent_run_id: ctx.traceId,\n  dotted_order: `${rootDotted}.${dottedTs(ctx.llmStartTime)}${ctx.llmRunId}`,\n  name: 'OpenAI Chat',\n  run_type: 'llm',\n  inputs: { messages: ctx.openaiRequest.messages },\n  outputs: { ...resp, usage_metadata: usageMetadata },\n  start_time: ctx.llmStartTime,\n  end_time: endTime,\n  session_name: ctx.project,\n  extra: {\n    metadata: { ls_provider: 'openai', ls_model_name: ctx.model, ls_model_type: 'chat', ls_temperature: 0.2 },\n    invocation_params: { model: ctx.model, temperature: 0.2 },\n  },\n};\n\nreturn [{ json: { answer, usage: usageMetadata, traceId: ctx.traceId, batch: { post: [root, llm] } } }];\n"
+      }
+    },
+    {
+      "id": "15b2d2ce-b024-45d0-84a3-24accc1684ea",
+      "name": "LangSmith: Log Trace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/runs/batch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.batch) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "ea32ede0-8197-4e78-be85-def8a3b517d6",
+      "name": "Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3ef1c7c-f660-4363-9cfe-cdac68de9963",
+              "name": "answer",
+              "value": "={{ $('Build LangSmith Runs').first().json.answer }}",
+              "type": "string"
+            },
+            {
+              "id": "9a8e2763-2ff0-4aa0-a2f7-dbb4c8deefb7",
+              "name": "usage",
+              "value": "={{ $('Build LangSmith Runs').first().json.usage }}",
+              "type": "object"
+            },
+            {
+              "id": "9b874ad9-939d-40e3-8997-4ea740ce2336",
+              "name": "langsmithTraceId",
+              "value": "={{ $('Build LangSmith Runs').first().json.traceId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ca30231f-d40a-43c4-9560-6b748fc10eaf",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -300
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 240,
+        "content": "## Mira – Step 1: Smoke test (OpenAI → LangSmith)\n1. **OpenAI: Chat Completion** → select your *OpenAI* credential.\n2. **LangSmith: Log Trace** → create a *Header Auth* credential: Name = `x-api-key`, Value = your LangSmith API key (lsv2_...).\n3. EU LangSmith workspace? Set `langsmithEndpoint` in **Config** to `https://eu.api.smith.langchain.com`.\n4. Click **Execute workflow**, then open LangSmith → project **mira** → check the trace shows the root run *Mira* with child *OpenAI Chat* including **tokens + cost**."
+      }
+    }
+  ],
+  "connections": {
+    "Run Smoke Test": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Start Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Trace": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Chat Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Chat Completion": {
+      "main": [
+        [
+          {
+            "node": "Build LangSmith Runs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LangSmith Runs": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Log Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Log Trace": {
+      "main": [
+        [
+          {
+            "node": "Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

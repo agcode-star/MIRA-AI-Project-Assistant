@@ -1,0 +1,9 @@
+phase,phase_name,start_week,end_week,key_activities,milestones_deliverables
+1,Project Initiation,1,2,"Define project scope; Form cross-functional team; Initial stakeholder meeting","Project charter signed off; Team structure finalized"
+2,Current State Analysis,3,4,"Assess existing processes & systems; Identify data sources & gaps","Current systems audit report; Gap analysis report"
+3,Use Case Selection,5,6,"Shortlist priority AI use cases (forecasting, route optimization)","Final list of prioritized use cases with success criteria"
+4,Pilot Design,7,10,"Data collection & preparation; Model design and development","Working prototype models; Data pipelines established"
+5,Pilot Implementation,11,14,"Deploy AI models in test environments; Monitor performance","Pilot results report; User feedback and performance metrics"
+6,Evaluation & Iteration,15,16,"Evaluate pilot outcomes; Adjust models as needed","Updated models and process refinements"
+7,Full Deployment,17,22,"Scale AI models across selected departments; Train staff","Full production rollout; Training sessions completed"
+8,Monitoring & Review,23,24,"Continuous performance monitoring; Final project review","Project closure report; Recommendations for future scaling"

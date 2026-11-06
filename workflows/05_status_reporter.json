@@ -1,0 +1,338 @@
+{
+  "name": "Mira – Step 5: Status Reporter",
+  "nodes": [
+    {
+      "id": "0c73e7bf-d4b6-4d8c-bedf-636f6a6874b9",
+      "name": "Run Status Tests",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "6d64765d-4aee-428f-b17b-2888638ccfeb",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "17e77ee3-efa1-4607-b439-5af9f99adec1",
+              "name": "model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "72971981-4687-4a44-a138-512f2367ea02",
+              "name": "judgeModel",
+              "value": "gpt-4o",
+              "type": "string"
+            },
+            {
+              "id": "3afcc5a4-6eef-4afa-bfa3-4e7c374a0e44",
+              "name": "langsmithProject",
+              "value": "mira",
+              "type": "string"
+            },
+            {
+              "id": "2332f07a-a1a4-4376-b10f-28cb6b69c2c0",
+              "name": "langsmithEndpoint",
+              "value": "https://api.smith.langchain.com",
+              "type": "string"
+            },
+            {
+              "id": "a9101223-ab18-497f-a486-9e70f6d24aa8",
+              "name": "asOfDate",
+              "value": "2026-04-24",
+              "type": "string"
+            },
+            {
+              "id": "49cb483d-6e5e-4a4c-a52b-a75ce9e72a2f",
+              "name": "projectStartDate",
+              "value": "2026-03-30",
+              "type": "string"
+            },
+            {
+              "id": "a7daaff2-21f6-49aa-a57a-b5908b324863",
+              "name": "upcomingWindowDays",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "92c8c4d5-1651-4c81-8d22-63546f64800f",
+              "name": "dueSoonDays",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "182f0e12-6d36-43e2-ad7b-474bfe9b5f90",
+              "name": "temperature",
+              "value": 0.2,
+              "type": "number"
+            },
+            {
+              "id": "629ab5ae-4b10-4465-b171-dd537e904c4b",
+              "name": "maxTokens",
+              "value": 3000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "cffa8a76-8dd2-4ea3-b79d-d102a3665031",
+      "name": "Knowledge Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Mira Knowledge Base: embedded project data + deterministic FACTS.\n// Code computes counts, filters and dates so the LLM agents never have to.\n// To use another project, replace the four data blocks below.\n\nconst cfg = $('Config').first().json;\n\n// ---------- Embedded project data (generated from Resources/) ----------\nconst PROJECT_NAME = 'AI Adoption Project – ABCDE Ltd.';\nconst PROJECT_DESCRIPTION = `AI Adoption Project Description for ABCDE Ltd.\n\nABCDE Ltd., a mid-sized enterprise specializing in logistics and supply chain solutions, is embarking on an AI adoption initiative to enhance operational efficiency, improve customer experience, and drive data-driven decision-making across the organization. This project will focus on integrating AI-powered tools into core business functions, including demand forecasting, route optimization, inventory management, and customer support. By leveraging machine learning models and natural language processing, the company aims to reduce manual overhead, minimize errors, and uncover actionable insights from historical and real-time data.\n\nThe AI adoption project will be implemented in phases, beginning with a detailed assessment of current workflows and data infrastructure, followed by pilot implementations in targeted departments. Key goals include reducing delivery delays by 15%, lowering operational costs by 10%, and improving service responsiveness. A cross-functional task force comprising data scientists, IT professionals, and business stakeholders will oversee the deployment and ensure alignment with organizational objectives. This strategic move is expected to position ABCDE Ltd. as a technology-forward leader in the logistics industry.`;\nconst TIMELINE_CSV = `phase,phase_name,start_week,end_week,key_activities,milestones_deliverables\n1,Project Initiation,1,2,\"Define project scope; Form cross-functional team; Initial stakeholder meeting\",\"Project charter signed off; Team structure finalized\"\n2,Current State Analysis,3,4,\"Assess existing processes & systems; Identify data sources & gaps\",\"Current systems audit report; Gap analysis report\"\n3,Use Case Selection,5,6,\"Shortlist priority AI use cases (forecasting, route optimization)\",\"Final list of prioritized use cases with success criteria\"\n4,Pilot Design,7,10,\"Data collection & preparation; Model design and development\",\"Working prototype models; Data pipelines established\"\n5,Pilot Implementation,11,14,\"Deploy AI models in test environments; Monitor performance\",\"Pilot results report; User feedback and performance metrics\"\n6,Evaluation & Iteration,15,16,\"Evaluate pilot outcomes; Adjust models as needed\",\"Updated models and process refinements\"\n7,Full Deployment,17,22,\"Scale AI models across selected departments; Train staff\",\"Full production rollout; Training sessions completed\"\n8,Monitoring & Review,23,24,\"Continuous performance monitoring; Final project review\",\"Project closure report; Recommendations for future scaling\"`;\nconst RISKS_CSV = `risk_id,category,risk_challenge,impact,mitigation_strategy\nR01,Data Quality & Availability,Incomplete or unstructured data,Poor model performance and inaccurate outcomes,Perform early data audits and implement robust data governance\nR02,Integration Issues,Difficulty integrating AI with legacy systems,Delays in deployment and operational disruptions,Plan integration roadmap and use APIs/middleware\nR03,Talent & Skills Gap,Lack of internal AI/ML expertise,Overreliance on external vendors and slow progress,Provide staff training and hire specialized talent\nR04,Change Resistance,Employees resist adopting AI-driven workflows,Low adoption and reduced ROI,Strong change management and early engagement\nR05,Ethical & Legal Concerns,Risks of biased models or data privacy violations,Legal repercussions and reputational damage,Involve legal early and implement fairness checks\nR06,Cost Overruns,Underestimation of AI development costs,Budget constraints and project delays,Set realistic budget and build in contingency funds\nR07,Unrealistic Expectations,Stakeholders expect immediate ROI,Disillusionment and loss of support,Align expectations and show quick wins\nR08,Model Performance Drift,AI models lose accuracy over time,Incorrect decisions and trust erosion,Regular retraining cycles and monitoring dashboards\nR09,Security Vulnerabilities,AI models targeted by adversarial attacks,Data breaches and operational risks,Adopt AI security best practices and penetration testing\nR10,Vendor Lock-in,Overdependence on a specific AI platform,Flexibility loss and future switching costs,Favor open standards and negotiate flexible vendor terms`;\nconst TASKS_CSV = `task_id,task_name,status,assignee,priority,sprint,due_date,labels,description\nT001,Define project scope and objectives,Done,Arjun Mehta,High,Sprint 1,2026-04-07,Planning,\"Document project scope, goals, and success criteria for AI adoption\"\nT002,Form cross-functional task force,Done,Sarah Lin,High,Sprint 1,2026-04-07,Planning,\"Identify and onboard team members from data science, IT, and business units\"\nT003,Initial stakeholder alignment meeting,Done,Arjun Mehta,High,Sprint 1,2026-04-10,Planning,\"Present project charter and get sign-off from leadership\"\nT004,Audit existing data infrastructure,Done,Priya Nair,High,Sprint 2,2026-04-18,Analysis,\"Assess current databases, data pipelines, and data quality\"\nT005,Map current logistics workflows,Done,James Wong,Medium,Sprint 2,2026-04-18,Analysis,\"Document end-to-end processes for demand forecasting, routing, and inventory\"\nT006,Identify data gaps and quality issues,In Progress,Priya Nair,High,Sprint 2,2026-04-21,Analysis,\"Gap analysis report comparing available data vs requirements for AI models\"\nT007,Shortlist AI use cases,In Progress,Arjun Mehta,High,Sprint 3,2026-04-28,Use Cases,\"Evaluate and prioritize: demand forecasting, route optimization, inventory mgmt, customer support\"\nT008,Define success criteria for each use case,To Do,Sarah Lin,High,Sprint 3,2026-05-02,Use Cases,\"Set measurable KPIs: 15% reduction in delivery delays, 10% cost reduction\"\nT009,Vendor evaluation for ML platform,To Do,James Wong,Medium,Sprint 3,2026-05-05,Use Cases,\"Compare cloud ML platforms (AWS SageMaker, Azure ML, GCP Vertex AI)\"\nT010,Collect historical demand data,To Do,Priya Nair,High,Sprint 4,2026-05-12,Data Prep,\"Extract 2 years of demand data from ERP system\"\nT011,Data cleaning and preprocessing pipeline,To Do,Priya Nair,High,Sprint 4,2026-05-19,Data Prep,\"Build automated pipeline for data cleaning, normalization, feature engineering\"\nT012,Design demand forecasting model,To Do,Ravi Kumar,High,Sprint 4,2026-05-19,Model Dev,\"Select algorithm (LSTM, Prophet, XGBoost), define input features\"\nT013,Design route optimization model,To Do,Ravi Kumar,Medium,Sprint 5,2026-05-26,Model Dev,\"Graph-based optimization with constraints (time windows, vehicle capacity)\"\nT014,Build model training pipeline,To Do,Ravi Kumar,High,Sprint 5,2026-06-02,Model Dev,\"Automated training, validation, and model versioning\"\nT015,Deploy demand model to test environment,To Do,James Wong,High,Sprint 6,2026-06-09,Pilot,\"Deploy to staging, set up monitoring, define test scenarios\"\nT016,Run pilot with logistics team,To Do,Arjun Mehta,High,Sprint 6,2026-06-16,Pilot,\"2-week pilot with 3 logistics coordinators using demand forecasting predictions\"\nT017,Collect pilot feedback and metrics,To Do,Sarah Lin,High,Sprint 7,2026-06-23,Evaluation,\"Survey users, measure prediction accuracy, compare with manual forecasts\"\nT018,Iterate on model based on feedback,To Do,Ravi Kumar,Medium,Sprint 7,2026-06-30,Evaluation,\"Adjust features, retrain model, validate improvements\"\nT019,Prepare production deployment plan,To Do,James Wong,High,Sprint 8,2026-07-07,Deployment,\"Infrastructure scaling, rollback plan, monitoring setup\"\nT020,Staff training program,To Do,Sarah Lin,Medium,Sprint 8,2026-07-14,Deployment,\"Train 25 logistics staff on using AI-powered forecasting dashboard\"\nT021,Full production rollout,To Do,Arjun Mehta,High,Sprint 9,2026-07-21,Deployment,\"Go-live for demand forecasting across all 3 distribution centers\"\nT022,Set up continuous monitoring,To Do,Priya Nair,High,Sprint 9,2026-07-28,Monitoring,\"Model performance dashboards, drift detection alerts, retraining triggers\"\nT023,Project closure report,To Do,Arjun Mehta,Medium,Sprint 10,2026-08-04,Monitoring,\"Final report: outcomes vs targets, lessons learned, recommendations for Phase 2\"\nT024,Security review of AI infrastructure,Blocked,James Wong,High,Sprint 5,2026-05-26,Security,\"Penetration testing and vulnerability assessment - BLOCKED: waiting for security team availability\"\nT025,Legal review of data usage,In Progress,Sarah Lin,High,Sprint 3,2026-04-28,Compliance,\"Review data privacy compliance for using customer delivery data in ML models\"`;\n\n// ---------- Helpers ----------\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [], field = '', inQuotes = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (inQuotes) {\n      if (c === '\"' && text[i + 1] === '\"') { field += '\"'; i++; }\n      else if (c === '\"') inQuotes = false;\n      else field += c;\n    } else if (c === '\"') inQuotes = true;\n    else if (c === ',') { row.push(field); field = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(field); field = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else field += c;\n  }\n  row.push(field);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n  const [header, ...body] = rows;\n  return body.map((r) => Object.fromEntries(header.map((h, i) => [h.trim(), (r[i] ?? '').trim()])));\n}\n\nconst DAY = 86400000;\nconst toDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };\nconst fmt = (d) => d.toISOString().slice(0, 10);\nconst addDays = (d, n) => new Date(d.getTime() + n * DAY);\nconst daysBetween = (a, b) => Math.round((b - a) / DAY);\nconst countBy = (arr, key) => arr.reduce((acc, x) => ({ ...acc, [x[key]]: (acc[x[key]] ?? 0) + 1 }), {});\n\nconst asOf = toDate(cfg.asOfDate);\nconst projectStart = toDate(cfg.projectStartDate);\nconst upcomingEnd = addDays(asOf, Number(cfg.upcomingWindowDays));\nconst dueSoonEnd = addDays(asOf, Number(cfg.dueSoonDays));\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\n// ---------- Timeline: week numbers -> calendar dates ----------\nconst timeline = parseCsv(TIMELINE_CSV).map((p) => {\n  const start = addDays(projectStart, (Number(p.start_week) - 1) * 7);\n  const end = addDays(projectStart, Number(p.end_week) * 7 - 1);\n  const status = end < asOf ? 'Completed (by schedule)' : start > asOf ? 'Upcoming' : 'Current';\n  return {\n    phase: Number(p.phase),\n    phase_name: p.phase_name,\n    start_week: Number(p.start_week),\n    end_week: Number(p.end_week),\n    start_date: fmt(start),\n    end_date: fmt(end),\n    schedule_status: status,\n    key_activities: p.key_activities.split(';').map((s) => s.trim()).filter(Boolean),\n    milestones: p.milestones_deliverables.split(';').map((s) => s.trim()).filter(Boolean),\n  };\n});\n\n// Each milestone is due at the end of its phase.\nconst milestones = timeline.flatMap((p) => p.milestones.map((m) => ({\n  milestone: m,\n  phase: p.phase,\n  phase_name: p.phase_name,\n  due_week: p.end_week,\n  due_date: p.end_date,\n  days_from_as_of: daysBetween(asOf, toDate(p.end_date)),\n})));\n\n// ---------- Project outcome phrases ----------\n// Short verbatim phrases from the description (goals, use cases, capabilities). Agents cite these\n// from a fixed list instead of free-text quoting, so a citation can never be invented.\nconst LEAD = /^(and|or|including|include|includes|the company aims to|aims to|by leveraging|by|to|of|with|is embarking on an ai adoption initiative to|key goals include|this project will focus on|beginning with|followed by|will)\\s+/i;\nconst outcomePhrases = [...new Set(PROJECT_DESCRIPTION.split('\\n').slice(1).join(' ')\n  .split(/[.;,]|\\s+and\\s+(?=[a-z]+ing\\b|improv|reduc|lower|minim|uncov|drive|enhanc)/)\n  .map((s) => { let t = s.trim(), prev; do { prev = t; t = t.replace(LEAD, ''); } while (t !== prev); return t; })\n  .filter((s) => { const n = s.split(/\\s+/).length; return n >= 2 && n <= 9 && !/ABCDE|^This|^The /.test(s); }))];\nconst USE_CASES = ['demand forecasting', 'route optimization', 'inventory management', 'customer support']\n  .filter((u) => PROJECT_DESCRIPTION.toLowerCase().includes(u));\n\n// ---------- Risks ----------\nconst risks = parseCsv(RISKS_CSV);\n\n// ---------- Tasks ----------\nconst tasks = parseCsv(TASKS_CSV).map((t) => {\n  const due = toDate(t.due_date);\n  return { ...t, days_until_due: daysBetween(asOf, due) };\n});\nconst open = (t) => t.status !== 'Done';\n\nconst statusCounts = Object.fromEntries(STATUSES.map((s) => [s, tasks.filter((t) => t.status === s).length]));\nconst unknownStatuses = tasks.filter((t) => !STATUSES.includes(t.status)).map((t) => `${t.task_id}: ${t.status}`);\n\nconst sprintNames = [...new Set(tasks.map((t) => t.sprint))]\n  .sort((a, b) => Number(a.replace(/\\D/g, '')) - Number(b.replace(/\\D/g, '')));\nconst sprints = sprintNames.map((name) => {\n  const ts = tasks.filter((t) => t.sprint === name);\n  const dues = ts.map((t) => t.due_date).sort();\n  return {\n    sprint: name,\n    first_due: dues[0],\n    last_due: dues[dues.length - 1],\n    task_count: ts.length,\n    status_counts: Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length])),\n    task_ids: ts.map((t) => t.task_id),\n  };\n});\n// Current sprint = first sprint whose last due date has not passed.\nconst currentSprint = (sprints.find((s) => toDate(s.last_due) >= asOf) ?? sprints[sprints.length - 1]).sprint;\n\nconst brief = (t) => ({\n  task_id: t.task_id, task_name: t.task_name, status: t.status, assignee: t.assignee,\n  priority: t.priority, sprint: t.sprint, due_date: t.due_date, days_until_due: t.days_until_due,\n});\n\nconst blocked = tasks.filter((t) => t.status === 'Blocked').map((t) => ({ ...brief(t), description: t.description }));\nconst overdue = tasks.filter((t) => open(t) && toDate(t.due_date) < asOf).map(brief);\nconst dueSoon = tasks.filter((t) => open(t) && t.status !== 'Blocked'\n  && toDate(t.due_date) >= asOf && toDate(t.due_date) <= dueSoonEnd).map(brief);\n\nconst workload = Object.entries(countBy(tasks.filter(open), 'assignee'))\n  .map(([assignee, open_tasks]) => ({\n    assignee,\n    open_tasks,\n    open_high_priority: tasks.filter((t) => open(t) && t.assignee === assignee && t.priority === 'High').length,\n    in_progress: tasks.filter((t) => t.status === 'In Progress' && t.assignee === assignee).map((t) => t.task_id),\n  }))\n  .sort((a, b) => b.open_tasks - a.open_tasks);\n\nconst currentWeek = Math.floor(daysBetween(projectStart, asOf) / 7) + 1;\nconst currentPhase = timeline.find((p) => p.schedule_status === 'Current') ?? null;\n\nconst facts = {\n  as_of_date: fmt(asOf),\n  project_start_date: fmt(projectStart),\n  current_week: currentWeek,\n  total_weeks: Math.max(...timeline.map((p) => p.end_week)),\n  current_phase: currentPhase ? `Phase ${currentPhase.phase}: ${currentPhase.phase_name}` : 'None (outside timeline)',\n  current_sprint: currentSprint,\n  total_tasks: tasks.length,\n  status_counts: statusCounts,\n  completion_pct: Math.round((statusCounts.Done / tasks.length) * 100),\n  blocked_tasks: blocked,\n  overdue_tasks: overdue,\n  due_soon_tasks: dueSoon,\n  due_soon_window: `${fmt(asOf)} to ${fmt(dueSoonEnd)}`,\n  upcoming_milestones: milestones.filter((m) => m.days_from_as_of >= 0 && toDate(m.due_date) <= upcomingEnd),\n  upcoming_window: `${fmt(asOf)} to ${fmt(upcomingEnd)}`,\n  next_milestones_after_window: milestones.filter((m) => toDate(m.due_date) > upcomingEnd).slice(0, 2),\n  sprints,\n  workload,\n  risk_count: risks.length,\n  risk_categories: risks.map((r) => `${r.risk_id} ${r.category}`),\n  data_warnings: unknownStatuses.map((s) => `Unrecognised task status: ${s}`),\n};\n\nreturn [{\n  json: {\n    project: { name: PROJECT_NAME, description: PROJECT_DESCRIPTION.trim(), outcome_phrases: outcomePhrases, use_cases: USE_CASES },\n    timeline,\n    milestones,\n    risks,\n    tasks,\n    facts,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "cfdebfbe-718f-4475-b78a-b597d4da8ec7",
+      "name": "Test Cases",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Baseline test dataset (eval_mira_inputs.txt) with machine-checkable expectations.\n// Emits one item per test listed in RUN – or, when started from the Chat Trigger, the chat message.\n\nconst incoming = $input.first()?.json ?? {};\nif (incoming.chatInput) {\n  return [{ json: { test_id: 'chat', query: incoming.chatInput, session_id: incoming.sessionId ?? null, checks: [] } }];\n}\n\nconst RUN = [\"T5\", \"T6\", \"T10\"];\nconst WITH_ROUTE = false; // full Mira workflow: also check the Orchestrator's route\nconst JUDGE_MATERIAL_MAX = null; // with the Fact-Check Judge: advisory max material claims (null = no judge)\n\n// Check types: status (value or list of accepted values) | judge_material_max | judge_min | phase_count | field (output field equals value) | grounded_min |\n// mentions_all / mentions_any / not_mentions (case-insensitive, in rendered output)\n// route: the agent the Orchestrator should pick (checked only when WITH_ROUTE).\nconst TESTS = [\n  { test_id: 'T1', query: 'Generate a project plan for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'planner',\n    checks: [{ type: 'status', value: 'PLAN' }, { type: 'phase_count', value: 8 }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T2', query: 'Generate a project plan for: \"We want to build a chatbot.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline', 'team'] }] },\n  { test_id: 'T3', query: 'Generate a risk assessment for the AI Adoption Project at ABCDE Ltd. Use the provided project description.', route: 'risk',\n    checks: [{ type: 'status', value: 'ASSESSMENT' }, { type: 'field', field: 'risk_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 },\n      { type: 'mentions_any', value: ['logistics', 'route', 'forecast', 'delivery', 'inventory'] }] },\n  { test_id: 'T4', query: 'Generate a risk assessment for: \"New project starting soon.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'timeline'] },\n      { type: 'not_mentions', value: ['R01', 'R02', 'Data Quality', 'Likelihood'] }] },\n  { test_id: 'T5', query: 'Generate a weekly status report using the sample task board data for Sprint 3.', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Sprint 3' },\n      { type: 'field', field: 'counts', value: 'Done 0 · In Progress 2 · Blocked 0 · To Do 2' },\n      { type: 'mentions_all', value: ['Shortlist AI use cases', 'Define success criteria for each use case', 'Vendor evaluation for ML platform', 'Legal review of data usage'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T6', query: 'Generate a weekly status report for: \"Things are going fine.\"', route: 'clarifier',\n    checks: [{ type: 'status', value: ['NO_DATA', 'NEEDS_CLARIFICATION'] }, { type: 'mentions_all', value: ['no task data'] },\n      { type: 'not_mentions', value: ['%', 'T0'] }] },\n  { test_id: 'T7', query: 'What are the top 3 risks for the ABCDE Ltd project based on the risk data?', route: 'risk',\n    checks: [{ type: 'status', value: 'TOP_RISKS' }, { type: 'field', field: 'risk_count', value: 3 },\n      { type: 'field', field: 'assessed_count', value: 10 }, { type: 'grounded_min', value: 0.9 },\n      { type: 'field', field: 'review_issue_count', value: 0 }] },\n  { test_id: 'T8', query: 'Which tasks are blocked or at risk of missing their deadline based on the task board?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'blocked', value: 'T024' }, { type: 'field', field: 'overdue', value: 'T006' },\n      { type: 'mentions_all', value: ['T024', 'Security review of AI infrastructure', 'T006'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T9', query: 'Generate a project plan for a 2-week project with no details provided.', route: 'clarifier',\n    checks: [{ type: 'status', value: 'NEEDS_CLARIFICATION' }, { type: 'mentions_all', value: ['scope', 'goal', 'deliverable'] }] },\n  { test_id: 'T10', query: 'Summarize the current project status: how many tasks are done, in progress, and to do?', route: 'status',\n    checks: [{ type: 'status', value: 'REPORT' }, { type: 'field', field: 'scope', value: 'Whole project' },\n      { type: 'field', field: 'counts', value: 'Done 5 · In Progress 3 · Blocked 1 · To Do 16' }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T11', query: 'What milestones are coming up in the next 2 weeks based on the timeline?', route: 'milestone',\n    checks: [{ type: 'status', value: 'ALERTS' }, { type: 'field', field: 'upcoming_count', value: 2 },\n      { type: 'mentions_all', value: ['Current systems audit report', 'Gap analysis report'] }, { type: 'grounded_min', value: 0.9 }] },\n  { test_id: 'T12', query: 'Generate a stakeholder update email summarizing Sprint 2 progress.', route: 'comms',\n    checks: [{ type: 'status', value: 'EMAIL' }, { type: 'field', field: 'scope', value: 'Sprint 2' },\n      { type: 'mentions_all', value: ['Audit existing data infrastructure', 'Map current logistics workflows', 'Identify data gaps'] },\n      { type: 'not_mentions', value: ['Shortlist AI use cases', 'Legal review of data usage', 'Security review', 'Vendor evaluation', 'T007', 'T024', 'T025'] },\n      { type: 'grounded_min', value: 0.9 }] },\n  // Extra robustness case (not in the baseline dataset).\n  { test_id: 'X1', query: 'What is the weather in Paris tomorrow?', route: 'fallback',\n    checks: [{ type: 'status', value: 'OUT_OF_SCOPE' }] },\n];\n\nreturn TESTS.filter((t) => RUN.includes(t.test_id)).map(({ route, ...t }) => ({\n  json: {\n    ...t,\n    checks: [\n      ...(WITH_ROUTE && route ? [{ type: 'field', field: 'route', value: route }] : []),\n      ...t.checks,\n      ...(JUDGE_MATERIAL_MAX !== null ? [{ type: 'judge_material_max', value: JUDGE_MATERIAL_MAX, advisory: true }] : []),\n    ],\n  },\n}));\n"
+      }
+    },
+    {
+      "id": "e42c6a71-93ef-4542-a4a2-a8a7dcea6f98",
+      "name": "Status Reporter: Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Status Reporter – resolves the report scope (a sprint or the whole project) in code, computes\n// every number for that scope, and builds the OpenAI request. The model only writes the narrative\n// and may cite only task IDs that are in scope (enum-constrained per request).\n\nconst cfg = $('Config').first().json;\nconst kb = $('Knowledge Base').first().json;\nconst f = kb.facts;\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\nconst SYSTEM_PROMPT = `ROLE\nYou are the Status Reporter inside Mira, a project intelligence assistant for PMs/TPMs at Nexora. You write the narrative of a weekly status report from task-board facts that have already been computed for you, and you refuse to report when there is no task data.\n\nINPUT\n- USER REQUEST: what the PM asked for.\n- TASK DATA (optional): <scope> (what the report covers), <facts> (counts and completion already computed), <tasks_in_scope>, and <context> (carried-over, blocked and due-soon tasks, upcoming milestones). If TASK DATA is absent, the only information you have is the USER REQUEST text.\n\nDECISION – choose exactly one status\n1. TASK DATA is absent → status \"NO_DATA\". A sentence like \"things are going fine\" is not task data. Never produce statuses, counts, percentages or task names.\n2. TASK DATA is present → status \"REPORT\".\n\nRULES FOR A REPORT (hallucination guardrails)\n- The counts, completion percentage, task tables and RAG status are rendered by code. Do not restate a number unless it appears in <facts>; never estimate or round progress.\n- Only call a task overdue, blocked or due soon if <facts> or its Flags say so. A Done task is never overdue. Never generalise (\"all tasks are overdue\") – name the tasks.\n- The only milestones are those listed under \"Upcoming milestones\" in <context>. A task is not a milestone – never invent one (e.g. \"security review milestone\").\n- Refer to tasks by ID and name exactly as given (e.g. \"T007 Shortlist AI use cases\"). Never mention a task that is not in TASK DATA.\n- headline: one sentence capturing the state of the scope (e.g. what is on track and what needs attention).\n- summary: 2–3 sentences for a PM audience.\n- highlights: progress worth reporting (done or advancing tasks). Each item cites the task_ids it is about.\n- concerns: overdue, blocked or due-soon work and why it matters (link to upcoming milestones where relevant). Each item cites task_ids.\n- next_week_focus: the 2–4 most important things to move next, each citing task_ids.\n- decisions_needed: escalations or decisions the PM should raise (e.g. unblocking a blocked task). Empty array if none.\n\nRULES FOR NO_DATA\n- Set report to null.\n- message: one sentence stating that no task data is available, so no status can be reported.\n- what_to_provide: the information needed – e.g. task list with statuses, owners, due dates, sprint or reporting period, blockers, and milestones.\n\nOUTPUT\nReturn JSON matching the provided schema. Unused branch must be null.`;\n\n// The Orchestrator decides this (uses_project_on_file); the regex is the fallback for the standalone step workflows.\nconst usesTaskBoard = (q) => /task board|task data|tasks|sprint\\s*\\d|project status|ABCDE|AI Adoption/i.test(q);\n\nconst sprintNo = (s) => Number(String(s).replace(/\\D/g, ''));\nfunction resolveScope(q, sprint) {\n  if (sprint) return { type: 'sprint', sprint: `Sprint ${sprint}` };\n  const m = q.match(/sprint\\s*(\\d+)/i);\n  if (m) return { type: 'sprint', sprint: `Sprint ${m[1]}` };\n  if (/this sprint|current sprint|weekly/i.test(q)) return { type: 'sprint', sprint: f.current_sprint };\n  return { type: 'project', sprint: null };\n}\n\nconst counts = (ts) => Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length]));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\nconst line = (t) => `${t.task_id} | ${t.task_name} | ${t.status} | ${t.assignee} | ${t.priority} | ${t.sprint} | due ${t.due_date} (${t.days_until_due >= 0 ? `in ${t.days_until_due}d` : `${-t.days_until_due}d late`})${overdueIds.has(t.task_id) ? ' | OVERDUE' : ''} | ${t.description}`;\n\n// Every number the report may contain is computed here.\nfunction buildScope(scope) {\n  const inScope = scope.type === 'sprint' ? kb.tasks.filter((t) => t.sprint === scope.sprint) : kb.tasks;\n  const c = counts(inScope);\n  const carriedOver = scope.type === 'sprint'\n    ? kb.tasks.filter((t) => t.status !== 'Done' && sprintNo(t.sprint) < sprintNo(scope.sprint)) : [];\n  const ids = new Set(inScope.map((t) => t.task_id));\n  const outside = (ts) => ts.filter((t) => !ids.has(t.task_id));\n  const context = {\n    carried_over: carriedOver,\n    blocked_elsewhere: outside(kb.tasks.filter((t) => t.status === 'Blocked')),\n    due_soon_elsewhere: outside(kb.tasks.filter((t) => f.due_soon_tasks.some((d) => d.task_id === t.task_id))),\n  };\n  const allowed = [...new Set([...inScope, ...context.carried_over, ...context.blocked_elsewhere, ...context.due_soon_elsewhere].map((t) => t.task_id))];\n  const flagged = (pred) => inScope.filter(pred).map((t) => t.task_id);\n  return {\n    label: scope.type === 'sprint' ? scope.sprint : 'Whole project',\n    type: scope.type,\n    sprint: scope.sprint,\n    task_ids: inScope.map((t) => t.task_id),\n    status_counts: c,\n    total: inScope.length,\n    completion_pct: inScope.length ? Math.round((c.Done / inScope.length) * 100) : 0,\n    overdue_ids: flagged((t) => overdueIds.has(t.task_id)),\n    blocked_ids: flagged((t) => t.status === 'Blocked'),\n    due_soon_ids: flagged((t) => f.due_soon_tasks.some((d) => d.task_id === t.task_id)),\n    context_ids: {\n      carried_over: context.carried_over.map((t) => t.task_id),\n      blocked_elsewhere: context.blocked_elsewhere.map((t) => t.task_id),\n      due_soon_elsewhere: context.due_soon_elsewhere.map((t) => t.task_id),\n    },\n    allowed_task_ids: allowed,\n    found: inScope.length > 0,\n  };\n}\n\nconst flags = (ids) => (ids.length ? `${ids.length} (${ids.join(', ')})` : '0');\n\nfunction taskDataBlock(s) {\n  const byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\n  const rows = (ids) => (ids.length ? ids.map((id) => line(byId.get(id))).join('\\n') : 'none');\n  // A milestone's linked tasks are those due inside its phase (same rule as the Milestone Tracker),\n  // so any task→milestone dependency the narrative states is backed by data.\n  const phaseOf = new Map(kb.timeline.map((p) => [p.phase, p]));\n  const linked = (m) => kb.tasks.filter((t) => t.due_date >= phaseOf.get(m.phase).start_date && t.due_date <= phaseOf.get(m.phase).end_date)\n    .map((t) => `${t.task_id} ${t.status}`).join(', ') || 'none';\n  const ms = f.upcoming_milestones.map((m) => `\\n- ${m.milestone} (Phase ${m.phase}, due ${m.due_date}; linked tasks: ${linked(m)})`).join('') || ' none';\n  return `TASK DATA – ${kb.project.name}\\n` +\n    `<scope>\\n${s.label} · as of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}, ${f.current_phase}; current sprint ${f.current_sprint})\\n</scope>\\n` +\n    `<facts>\\nTasks in scope: ${s.total}\\n${STATUSES.map((st) => `${st}: ${s.status_counts[st]}`).join('\\n')}\\nCompletion: ${s.completion_pct}%\\n` +\n    `Overdue in scope: ${flags(s.overdue_ids)}\\nBlocked in scope: ${flags(s.blocked_ids)}\\n` +\n    `Due within ${cfg.dueSoonDays} days in scope: ${flags(s.due_soon_ids)}\\n</facts>\\n` +\n    `<tasks_in_scope>\\nTask | Name | Status | Assignee | Priority | Sprint | Due | Flags | Description\\n${rows(s.task_ids)}\\n</tasks_in_scope>\\n` +\n    `<context>\\nCarried over from earlier sprints (not done): \\n${rows(s.context_ids.carried_over)}\\n` +\n    `Blocked outside scope: \\n${rows(s.context_ids.blocked_elsewhere)}\\n` +\n    `Due within ${cfg.dueSoonDays} days outside scope: \\n${rows(s.context_ids.due_soon_elsewhere)}\\n` +\n    `Upcoming milestones (${f.upcoming_window}) – the ONLY milestones; use their exact names:${ms}\\n</context>`;\n}\n\nfunction responseFormat(allowedIds) {\n  const strings = { type: 'array', items: { type: 'string' } };\n  const cited = {\n    type: 'array',\n    items: {\n      type: 'object', additionalProperties: false, required: ['text', 'task_ids'],\n      properties: { text: { type: 'string' }, task_ids: { type: 'array', items: { type: 'string', enum: allowedIds } } },\n    },\n  };\n  return {\n    type: 'json_schema',\n    json_schema: {\n      name: 'status_output',\n      strict: true,\n      schema: {\n        type: 'object', additionalProperties: false, required: ['status', 'no_data', 'report'],\n        properties: {\n          status: { type: 'string', enum: ['REPORT', 'NO_DATA'] },\n          no_data: {\n            anyOf: [{ type: 'null' }, {\n              type: 'object', additionalProperties: false, required: ['message', 'what_to_provide'],\n              properties: { message: { type: 'string' }, what_to_provide: strings },\n            }],\n          },\n          report: {\n            anyOf: [{ type: 'null' }, {\n              type: 'object', additionalProperties: false,\n              required: ['headline', 'summary', 'highlights', 'concerns', 'next_week_focus', 'decisions_needed'],\n              properties: {\n                headline: { type: 'string' }, summary: { type: 'string' },\n                highlights: cited, concerns: cited, next_week_focus: cited, decisions_needed: cited,\n              },\n            }],\n          },\n        },\n      },\n    },\n  };\n}\n\nreturn $input.all().map(({ json: req }) => {\n  const scope = (req.uses_project_on_file ?? usesTaskBoard(req.query)) ? buildScope(resolveScope(req.query, req.sprint)) : null;\n  const hasData = Boolean(scope?.found);\n  const userContent = `USER REQUEST:\\n${req.query}\\n\\n` +\n    (hasData ? taskDataBlock(scope) : 'TASK DATA: none provided.');\n  const messages = [\n    { role: 'system', content: SYSTEM_PROMPT },\n    { role: 'user', content: userContent },\n  ];\n  return {\n    json: {\n      ...req,\n      agent: 'Status Reporter',\n      uses_project_data: hasData,\n      scope,\n      started_at: new Date().toISOString(),\n      openaiRequest: {\n        model: cfg.model,\n        temperature: Number(cfg.temperature),\n        max_tokens: Number(cfg.maxTokens),\n        response_format: responseFormat(hasData ? scope.allowed_task_ids : kb.tasks.map((t) => t.task_id)),\n        messages,\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "66cfe7e6-b908-4baa-887e-0c90a8d7126e",
+      "name": "OpenAI: Status Reporter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openaiRequest) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "547c5c41-2bbc-46f7-a7bf-5024b208e78d",
+      "name": "Status Reporter: Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Status Reporter – parses the model narrative, verifies every task ID and number in it against\n// the computed facts, renders the report (counts, tables and RAG come from code), and describes\n// the LangSmith trace for this request.\n\nconst kb = $('Knowledge Base').first().json;\nconst cfg = $('Config').first().json;\nconst requests = $('Status Reporter: Build Prompt').all();\nconst f = kb.facts;\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\nconst byId = new Map(kb.tasks.map((t) => [t.task_id, t]));\nconst overdueIds = new Set(f.overdue_tasks.map((t) => t.task_id));\nconst cell = (s) => String(s ?? '').replace(/\\|/g, '/').replace(/\\n/g, ' ');\nconst list = (items) => (items.length ? items.map((x) => `- ${x}`).join('\\n') : '- _None._');\nconst timing = (t) => (t.status === 'Done' ? 'Done'\n  : t.status === 'Blocked' ? `⛔ Blocked · due in ${t.days_until_due}d`\n  : t.days_until_due < 0 ? `⚠ ${-t.days_until_due}d overdue` : t.days_until_due === 0 ? 'Due today' : `Due in ${t.days_until_due}d`);\n\n// RAG from fixed rules, so the overall status never depends on the model's tone.\nfunction rag(scope) {\n  const watched = [...scope.task_ids, ...scope.context_ids.carried_over].map((id) => byId.get(id));\n  const overdue = watched.filter((t) => overdueIds.has(t.task_id));\n  const blocked = watched.filter((t) => t.status === 'Blocked');\n  const reasons = [];\n  let level = 'Green';\n  const lateHigh = overdue.filter((t) => t.priority === 'High' && -t.days_until_due > 7);\n  const blockedSoon = blocked.filter((t) => t.days_until_due <= Number(cfg.dueSoonDays));\n  if (lateHigh.length || blockedSoon.length) {\n    level = 'Red';\n    lateHigh.forEach((t) => reasons.push(`${t.task_id} is high priority and more than 7 days overdue`));\n    blockedSoon.forEach((t) => reasons.push(`${t.task_id} is blocked and due within ${cfg.dueSoonDays} days`));\n  } else if (overdue.length || blocked.length) {\n    level = 'Amber';\n    overdue.forEach((t) => reasons.push(`${t.task_id} ${t.task_name} is ${-t.days_until_due}d overdue`));\n    blocked.forEach((t) => reasons.push(`${t.task_id} ${t.task_name} is blocked (due ${t.due_date})`));\n  } else reasons.push('no overdue or blocked tasks');\n  return { level, reasons };\n}\nconst RAG_ICON = { Green: '🟢', Amber: '🟠', Red: '🔴' };\n\n// Numbers the narrative may use: computed counts/percentages, task timings and numbers that\n// appear in the source task text (e.g. KPIs \"15%\", \"3 distribution centers\").\nfunction allowedNumbers(scope) {\n  const nums = new Set([scope.total, f.total_tasks, f.current_week, f.total_weeks,\n    ...Object.values(scope.status_counts), ...Object.values(f.status_counts),\n    scope.context_ids.carried_over.length, scope.context_ids.blocked_elsewhere.length,\n    scope.context_ids.due_soon_elsewhere.length, f.upcoming_milestones.length,\n    scope.overdue_ids.length, scope.blocked_ids.length, scope.due_soon_ids.length,\n    f.overdue_tasks.length, f.blocked_tasks.length, f.due_soon_tasks.length,\n    Number(cfg.dueSoonDays), Number(cfg.upcomingWindowDays)]);\n  const pcts = new Set([scope.completion_pct, f.completion_pct]);\n  for (const id of scope.allowed_task_ids) {\n    const t = byId.get(id);\n    nums.add(Math.abs(t.days_until_due));\n    for (const m of `${t.task_name} ${t.description}`.matchAll(/(\\d+)(%?)/g)) (m[2] ? pcts : nums).add(Number(m[1]));\n  }\n  for (const m of kb.project.description.matchAll(/(\\d+)%/g)) pcts.add(Number(m[1]));\n  const dates = new Set([f.as_of_date, ...scope.allowed_task_ids.map((id) => byId.get(id).due_date),\n    ...f.upcoming_milestones.map((m) => m.due_date)]);\n  return { nums, pcts, dates };\n}\n\n// Dates in the narrative (\"2026-04-26\", \"April 26, 2026\", \"26 April\") must be real dates from the data.\nconst MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];\nconst MONTH = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\\\.?';\nconst DATE_PATTERNS = [\n  [/\\b(\\d{4})-(\\d{2})-(\\d{2})\\b/g, (m) => [m[1], m[2], m[3]]],\n  [new RegExp(`\\\\b${MONTH}\\\\s+(\\\\d{1,2})(?:st|nd|rd|th)?(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[1].toLowerCase()) + 1, m[2]]],\n  [new RegExp(`\\\\b(\\\\d{1,2})(?:st|nd|rd|th)?\\\\s+${MONTH}(?:,?\\\\s+(\\\\d{4}))?`, 'gi'), (m) => [m[3], MONTHS.indexOf(m[2].toLowerCase()) + 1, m[1]]],\n];\nfunction extractDates(text) {\n  const found = [];\n  let rest = text;\n  for (const [re, parts] of DATE_PATTERNS) {\n    rest = rest.replace(re, (...m) => {\n      const [y, mo, d] = parts(m);\n      found.push({ raw: m[0], iso: `${y ?? f.as_of_date.slice(0, 4)}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` });\n      return ' ';\n    });\n  }\n  return { found, rest };\n}\n\n// \"X milestone\" phrases must name a real milestone: the word right before \"milestone\" must occur in a\n// milestone name, or be generic (\"upcoming milestones\", \"the Phase 2 milestones\").\nconst milestoneWords = new Set(kb.milestones.flatMap((m) => m.milestone.toLowerCase().split(/[^a-z0-9]+/)));\nconst GENERIC = new Set(['the', 'a', 'an', 'these', 'those', 'both', 'two', 'its', 'their', 'our', 'upcoming', 'next', 'key',\n  'current', 'phase', 'project', 'related', 'linked', 'this', 'that', 'any', 'other', 'and', 'of', 'for', 'to', 'two', 'all']);\nfunction inventedMilestones(text) {\n  return [...text.matchAll(/((?:[A-Za-z0-9'-]+\\s+){1,3})milestones?\\b/gi)]\n    .filter((m) => {\n      const head = m[1].toLowerCase().trim().split(/\\s+/).pop().replace(/'s$/, '');\n      return !GENERIC.has(head) && !milestoneWords.has(head) && !/^\\d+$/.test(head);\n    })\n    .map((m) => m[0].trim());\n}\n\nfunction groundingCheck(report, scope) {\n  const allowed = new Set(scope.allowed_task_ids);\n  const { nums, pcts, dates } = allowedNumbers(scope);\n  const items = [\n    { where: 'headline', text: report.headline, task_ids: [] },\n    { where: 'summary', text: report.summary, task_ids: [] },\n    ...['highlights', 'concerns', 'next_week_focus', 'decisions_needed']\n      .flatMap((k) => report[k].map((x, i) => ({ where: `${k}[${i + 1}]`, ...x }))),\n  ];\n  const issues = [];\n  let grounded = 0;\n  for (const it of items) {\n    const problems = [];\n    const ids = [...new Set([...(it.text.match(/\\bT\\d{3}\\b/g) ?? []), ...it.task_ids])];\n    const outOfScope = ids.filter((id) => !allowed.has(id));\n    if (outOfScope.length) problems.push(`task not in scope: ${outOfScope.join(', ')}`);\n    inventedMilestones(it.text).forEach((m) => problems.push(`no such milestone: “${m}”`));\n    const { found, rest } = extractDates(it.text);\n    found.filter((d) => !dates.has(d.iso)).forEach((d) => problems.push(`unsupported date “${d.raw}”`));\n    const stripped = rest.replace(/\\bT\\d{3}\\b/g, ' ').replace(/\\b(sprint|phase|week|q)\\s*\\d+/gi, ' ');\n    for (const m of stripped.matchAll(/(\\d+(?:\\.\\d+)?)\\s*(%|percent)?/g)) {\n      const n = Number(m[1]);\n      if (m[2] ? !pcts.has(n) : !nums.has(n)) problems.push(`unsupported ${m[2] ? 'percentage' : 'number'} “${m[0].trim()}”`);\n    }\n    if (problems.length) issues.push(`${it.where}: ${problems.join(', ')}`);\n    else grounded++;\n  }\n  return { checked: items.length, grounded, score: items.length ? grounded / items.length : 1, issues };\n}\n\nfunction taskTable(ids) {\n  return ['| ID | Task | Owner | Priority | Sprint | Due | Timing |', '|---|---|---|---|---|---|---|',\n    ...ids.map((id) => byId.get(id)).map((t) =>\n      `| ${t.task_id} | ${cell(t.task_name)} | ${t.assignee} | ${t.priority} | ${t.sprint} | ${t.due_date} | ${timing(t)} |`)].join('\\n');\n}\n\nconst citedList = (items) => (items.length\n  ? items.map((x) => `- ${x.text}${x.task_ids.length ? ` _(${x.task_ids.join(', ')})_` : ''}`).join('\\n')\n  : '- _None._');\n\nfunction renderReport(report, scope, r, grounding) {\n  const c = scope.status_counts;\n  const progress = ['| Status | Tasks |', '|---|---|', ...STATUSES.map((s) => `| ${s} | ${c[s]} |`), `| **Total** | **${scope.total}** |`].join('\\n');\n  const byStatus = STATUSES.filter((s) => c[s] > 0).map((s) =>\n    `### ${s} (${c[s]})\\n\\n${taskTable(scope.task_ids.filter((id) => byId.get(id).status === s))}`);\n  const ctx = scope.context_ids;\n  const context = [\n    ctx.carried_over.length ? `**Carried over from earlier sprints (not done)**\\n\\n${taskTable(ctx.carried_over)}` : null,\n    ctx.blocked_elsewhere.length ? `**Blocked outside this scope**\\n\\n${taskTable(ctx.blocked_elsewhere)}` : null,\n    ctx.due_soon_elsewhere.length ? `**Due within ${cfg.dueSoonDays} days outside this scope**\\n\\n${taskTable(ctx.due_soon_elsewhere)}` : null,\n  ].filter(Boolean);\n  return [\n    `# Weekly Status Report — ${scope.label}`,\n    `_Generated by Mira · as of ${f.as_of_date} (week ${f.current_week} of ${f.total_weeks}, ${f.current_phase}) · Source: sample_task_board.csv_`,\n    `**Overall status: ${RAG_ICON[r.level]} ${r.level}** — ${r.reasons.join('; ')}`,\n    `**${report.headline}**`,\n    '## Summary', report.summary,\n    '## Progress',\n    `${progress}\\n\\nCompletion: **${scope.completion_pct}%** (${c.Done} of ${scope.total} done)` +\n      (scope.type === 'sprint' ? ` · Whole project: ${f.completion_pct}% (${f.status_counts.Done} of ${f.total_tasks} done)` : ''),\n    '## Tasks by status', ...byStatus,\n    ...(context.length ? ['## Watch list', ...context] : []),\n    '## Highlights', citedList(report.highlights),\n    '## Concerns & blockers', citedList(report.concerns),\n    '## Focus for next week', citedList(report.next_week_focus),\n    '## Decisions / escalations needed', citedList(report.decisions_needed),\n    '---',\n    `Grounding check: ${grounding.grounded}/${grounding.checked} narrative items verified (task IDs in scope, numbers match the task board)` +\n      (grounding.issues.length ? `\\n${grounding.issues.map((i) => `- ⚠ ${i}`).join('\\n')}` : ' ✅'),\n  ].join('\\n\\n');\n}\n\nfunction renderNoData(nd, req) {\n  const notFound = req.scope && !req.scope.found ? `${req.scope.label} has no tasks on the task board. ` : '';\n  return [\n    '## No task data available',\n    `${notFound}I can't produce a status report from the request alone – there are no task statuses, owners or due dates to report on.`,\n    nd.message,\n    '**To generate the report, please provide**', list(nd.what_to_provide),\n    '_No task statuses, counts or progress percentages were generated._',\n  ].join('\\n\\n');\n}\n\nreturn $input.all().map((item, i) => {\n  const req = requests[i].json;\n  const body = item.json.body ?? item.json;\n  const headers = item.json.headers ?? {};\n  const finishedAt = new Date().toISOString();\n  const content = body.choices?.[0]?.message?.content ?? '';\n\n  let output = null, parseError = null;\n  try { output = JSON.parse(content); } catch (e) { parseError = e.message; }\n\n  let markdown, grounding = null, r = null;\n  const status = output?.status ?? 'ERROR';\n  const scope = req.scope;\n  if (!output) {\n    markdown = `⚠ Status Reporter returned unparseable output (${parseError}).\\n\\n${content}`;\n  } else if (status === 'REPORT' && output.report && scope?.found) {\n    grounding = groundingCheck(output.report, scope);\n    r = rag(scope);\n    markdown = renderReport(output.report, scope, r, grounding);\n  } else {\n    markdown = renderNoData(output.no_data ?? { message: 'No task data was provided.', what_to_provide: [] }, req);\n  }\n\n  // Model latency from OpenAI's header gives accurate per-call timing even when items run in sequence.\n  const latencyMs = Number(headers['openai-processing-ms']) || (Date.parse(finishedAt) - Date.parse(req.started_at));\n  const llmEnd = new Date(Date.parse(req.started_at) + latencyMs).toISOString();\n  const usage = body.usage ?? {};\n  const counts = grounding ? STATUSES.map((s) => `${s} ${scope.status_counts[s]}`).join(' · ') : null;\n\n  return {\n    json: {\n      test_id: req.test_id,\n      query: req.query,\n      checks: req.checks,\n      agent: req.agent,\n      status,\n      uses_project_data: req.uses_project_data,\n      scope: grounding ? scope.label : null,\n      counts,\n      rag: r?.level ?? null,\n      grounding,\n      markdown,\n      usage: { input_tokens: usage.prompt_tokens ?? 0, output_tokens: usage.completion_tokens ?? 0, total_tokens: usage.total_tokens ?? 0 },\n      trace: {\n        name: 'Mira',\n        start_time: req.started_at,\n        end_time: finishedAt,\n        inputs: { query: req.query },\n        outputs: { status, response: markdown },\n        tags: ['mira', 'status', req.test_id].filter(Boolean),\n        metadata: { test_id: req.test_id, agent: req.agent, status, scope: scope?.label ?? null, uses_project_data: req.uses_project_data, groundedness: grounding?.score ?? null, as_of_date: f.as_of_date },\n        children: [\n          {\n            name: req.agent,\n            run_type: 'llm',\n            start_time: req.started_at,\n            end_time: llmEnd,\n            inputs: { messages: req.openaiRequest.messages },\n            outputs: body,\n            model: req.openaiRequest.model,\n            temperature: req.openaiRequest.temperature,\n          },\n          {\n            name: 'Grounding Check',\n            run_type: 'chain',\n            start_time: llmEnd,\n            end_time: finishedAt,\n            inputs: { status, scope: scope?.label ?? null },\n            outputs: grounding ? { ...grounding, rag: r, counts } : { skipped: 'no report generated' },\n          },\n        ],\n      },\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "d3935e18-07fd-4df1-8754-743915f8cac5",
+      "name": "LangSmith: Build Trace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Reusable: converts each item's `trace` descriptor into a LangSmith /runs/batch payload.\n// Descriptor: { name, start_time, end_time, inputs, outputs, tags, metadata,\n//               children: [{ name, run_type, start_time, end_time, inputs, outputs, model?, temperature? }] }\n\nconst cfg = $('Config').first().json;\n\n// UUID v7 (time-ordered), which LangSmith expects for run IDs.\nfunction uuidv7(ms) {\n  const r = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join('');\n  const ts = ms.toString(16).padStart(12, '0');\n  const variant = '89ab'[Math.floor(Math.random() * 4)];\n  return `${ts.slice(0, 8)}-${ts.slice(8, 12)}-7${r(3)}-${variant}${r(3)}-${r(12)}`;\n}\n\n// LangSmith dotted_order segment: YYYYMMDDTHHMMSSffffffZ + run id\nconst dottedTs = (iso) => iso.replace(/[-:]/g, '').replace('.', '').replace('Z', '000Z');\n\nfunction usageMetadata(outputs) {\n  const u = outputs?.usage ?? {};\n  return { input_tokens: u.prompt_tokens ?? 0, output_tokens: u.completion_tokens ?? 0, total_tokens: u.total_tokens ?? 0 };\n}\n\nreturn $input.all().map(({ json }) => {\n  const t = json.trace;\n  const rootStart = Date.parse(t.start_time);\n  const traceId = uuidv7(rootStart);\n  const rootDotted = dottedTs(t.start_time) + traceId;\n\n  const root = {\n    id: traceId,\n    trace_id: traceId,\n    dotted_order: rootDotted,\n    name: t.name,\n    run_type: 'chain',\n    inputs: t.inputs,\n    outputs: t.outputs,\n    start_time: t.start_time,\n    end_time: t.end_time,\n    session_name: cfg.langsmithProject,\n    tags: t.tags,\n    extra: { metadata: { ...t.metadata, n8n_execution_id: $execution.id } },\n  };\n\n  // Children start strictly after the root (+1 ms each) so dotted_order stays monotonic.\n  const children = (t.children ?? []).map((c, idx) => {\n    const startMs = Math.max(Date.parse(c.start_time), rootStart + idx + 1);\n    const start = new Date(startMs).toISOString();\n    const end = new Date(Math.max(Date.parse(c.end_time), startMs)).toISOString();\n    const id = uuidv7(startMs);\n    const run = {\n      id,\n      trace_id: traceId,\n      parent_run_id: traceId,\n      dotted_order: `${rootDotted}.${dottedTs(start)}${id}`,\n      name: c.name,\n      run_type: c.run_type,\n      inputs: c.inputs,\n      outputs: c.outputs,\n      start_time: start,\n      end_time: end,\n      session_name: cfg.langsmithProject,\n    };\n    if (c.run_type === 'llm') {\n      run.outputs = { ...c.outputs, usage_metadata: usageMetadata(c.outputs) };\n      run.extra = {\n        metadata: { ls_provider: 'openai', ls_model_name: c.model, ls_model_type: 'chat', ls_temperature: c.temperature },\n        invocation_params: { model: c.model, temperature: c.temperature },\n      };\n    }\n    return run;\n  });\n\n  return { json: { test_id: json.test_id, trace_id: traceId, batch: { post: [root, ...children] } } };\n});\n"
+      }
+    },
+    {
+      "id": "73acb16b-fc4c-43f4-91cd-eaf694cbb6cb",
+      "name": "LangSmith: Log Trace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Config').first().json.langsmithEndpoint }}/runs/batch",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.batch) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "d5167585-de13-4eb1-8a5f-f9b2c9ee9bd1",
+      "name": "Test Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Scores each agent output against its test's expectations (see Test Cases node).\n\nconst outputs = $('Status Reporter: Format Output').all().map((i) => i.json);\nconst traceIds = $('LangSmith: Build Trace').all().map((i) => i.json.trace_id);\n\nfunction evaluate(check, out) {\n  const text = out.markdown.toLowerCase();\n  switch (check.type) {\n    case 'status':\n      return [[].concat(check.value).includes(out.status), `status ${out.status}`];\n    case 'phase_count':\n      return [out.phase_count === check.value, `${out.phase_count} phases`];\n    case 'field':\n      return [out[check.field] === check.value, `${check.field} = ${JSON.stringify(out[check.field])}`];\n    case 'judge_material_max': {\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      const claims = out.judge?.unsupported_claims ?? [];\n      const material = claims.filter((c) => c.severity === 'material').length;\n      return [out.judge_score !== null && material <= check.value, `fact-check ${out.judge_score ?? '–'}/5 · ${material} material, ${claims.length - material} minor`];\n    }\n    case 'judge_min':\n      if (out.judge_skipped) return [true, 'fact-check n/a'];\n      return [(out.judge_score ?? 0) >= check.value, `fact-check ${out.judge_score ?? '–'}/5${out.unsupported_count ? ` (${out.unsupported_count} unsupported)` : ''}`];\n    case 'grounded_min': {\n      const score = out.grounding?.score ?? 0;\n      return [score >= check.value, `groundedness ${(score * 100).toFixed(0)}%`];\n    }\n    case 'mentions_all': {\n      const missing = check.value.filter((term) => !text.includes(term.toLowerCase()));\n      return [missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : `mentions ${check.value.join(', ')}`];\n    }\n    case 'mentions_any': {\n      const hit = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [hit.length > 0, hit.length ? `mentions ${hit.join(', ')}` : `none of: ${check.value.join(', ')}`];\n    }\n    case 'not_mentions': {\n      const found = check.value.filter((term) => text.includes(term.toLowerCase()));\n      return [found.length === 0, found.length ? `should not mention: ${found.join(', ')}` : 'no forbidden terms'];\n    }\n    default:\n      return [false, `unknown check ${check.type}`];\n  }\n}\n\nreturn outputs.map((out, i) => {\n  // Advisory checks (the LLM judge, ~50% measured precision) are shown as INFO and never decide the verdict.\n  const results = (out.checks ?? []).map((c) => {\n    const [pass, detail] = evaluate(c, out);\n    return `${c.advisory ? 'INFO' : pass ? 'PASS' : 'FAIL'} – ${c.type}: ${detail}${c.advisory && !pass ? ' (review)' : ''}`;\n  });\n  const failed = results.filter((r) => r.startsWith('FAIL')).length;\n  const graded = results.filter((r) => !r.startsWith('INFO')).length;\n  return {\n    json: {\n      test_id: out.test_id,\n      verdict: results.length === 0 ? 'NO CHECKS' : failed === 0 ? 'PASS' : 'FAIL',\n      checks: results,\n      checks_passed: graded - failed,\n      checks_total: graded,\n      status: out.status,\n      tokens: out.usage.total_tokens,\n      route: out.route,\n      expected_route: (out.checks ?? []).find((c) => c.type === 'field' && c.field === 'route')?.value ?? null,\n      groundedness: out.grounding?.score ?? null,\n      judge_score: out.judge_score,\n      judge_material: out.judge_skipped ? null : (out.judge?.unsupported_claims ?? []).filter((c) => c.severity === 'material').length,\n      query: out.query,\n      started_at: out.started_at_trace ?? null,\n      ended_at: out.ended_at_trace ?? null,\n      unsupported_claims: (out.judge?.unsupported_claims ?? []).map((c) => c.claim),\n      langsmith_trace_id: traceIds[i],\n      response: out.markdown,\n      output: out.markdown, // shown as the reply when Mira runs from the Chat Trigger\n    },\n  };\n});\n"
+      }
+    },
+    {
+      "id": "9e569c09-4477-42e3-8764-09d49c0e9e9f",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -340
+      ],
+      "parameters": {
+        "width": 780,
+        "height": 260,
+        "content": "## Mira – Step 5: Status Reporter (T5, T6, T10)\n1. **OpenAI: Status Reporter** → select your *OpenAI* credential.\n2. **LangSmith: Log Trace** → select your *LangSmith* Header Auth credential.\n3. **Execute workflow** → open **Test Results** for PASS/FAIL, checks and the rendered `response`.\n4. LangSmith project **mira** → 3 traces tagged `status` + T5/T6/T10.\nScope, counts, task tables and RAG come from code; the model writes only the narrative."
+      }
+    }
+  ],
+  "connections": {
+    "Run Status Tests": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Test Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Cases": {
+      "main": [
+        [
+          {
+            "node": "Status Reporter: Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Reporter: Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI: Status Reporter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI: Status Reporter": {
+      "main": [
+        [
+          {
+            "node": "Status Reporter: Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Reporter: Format Output": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Build Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Build Trace": {
+      "main": [
+        [
+          {
+            "node": "LangSmith: Log Trace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LangSmith: Log Trace": {
+      "main": [
+        [
+          {
+            "node": "Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

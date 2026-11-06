@@ -1,0 +1,8 @@
+venv/
+.deepeval/
+__pycache__/
+*.pyc
+Screenshots/*.docx
+# course material (not redistributed)
+Capstone Project Playbook.pdf
+Problem Statement - Mira_ AI-Powered Project Intelligence Assistant.pdf

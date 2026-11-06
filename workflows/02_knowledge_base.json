@@ -1,0 +1,174 @@
+{
+  "name": "Mira – Step 2: Knowledge Base",
+  "nodes": [
+    {
+      "id": "15a97423-956b-46d3-8f9d-30006335b085",
+      "name": "Run Knowledge Base",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "ce5a796b-76cc-4f1b-9219-dffbc3e9ef6f",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2cf05a77-1998-442a-87d1-d1f14dd45120",
+              "name": "model",
+              "value": "gpt-4o-mini",
+              "type": "string"
+            },
+            {
+              "id": "ddda346c-4e37-4e34-818b-1b42379e008c",
+              "name": "judgeModel",
+              "value": "gpt-4o",
+              "type": "string"
+            },
+            {
+              "id": "bc379ded-c1f8-4af5-9df3-78b3e034d15e",
+              "name": "langsmithProject",
+              "value": "mira",
+              "type": "string"
+            },
+            {
+              "id": "626b6187-093e-40dc-9607-c3598be7b1c7",
+              "name": "langsmithEndpoint",
+              "value": "https://api.smith.langchain.com",
+              "type": "string"
+            },
+            {
+              "id": "4a10d15d-42a9-45a8-816c-c495a28305d3",
+              "name": "asOfDate",
+              "value": "2026-04-24",
+              "type": "string"
+            },
+            {
+              "id": "906b0a38-a3c6-405b-a94d-1ce5724d4df7",
+              "name": "projectStartDate",
+              "value": "2026-03-30",
+              "type": "string"
+            },
+            {
+              "id": "091daf17-0280-4cff-88fb-4e03dc7feb4a",
+              "name": "upcomingWindowDays",
+              "value": 14,
+              "type": "number"
+            },
+            {
+              "id": "c9d1257d-7eeb-4554-8d36-2dfcac667d55",
+              "name": "dueSoonDays",
+              "value": 7,
+              "type": "number"
+            },
+            {
+              "id": "23dc137f-e702-4117-909c-bb00e24c9b23",
+              "name": "temperature",
+              "value": 0.2,
+              "type": "number"
+            },
+            {
+              "id": "c6cc6f17-1961-469c-bde3-b3f64765d947",
+              "name": "maxTokens",
+              "value": 3000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fec7e7b3-1fe5-4fb7-a4e9-5e166ea92f55",
+      "name": "Knowledge Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Mira Knowledge Base: embedded project data + deterministic FACTS.\n// Code computes counts, filters and dates so the LLM agents never have to.\n// To use another project, replace the four data blocks below.\n\nconst cfg = $('Config').first().json;\n\n// ---------- Embedded project data (generated from Resources/) ----------\nconst PROJECT_NAME = 'AI Adoption Project – ABCDE Ltd.';\nconst PROJECT_DESCRIPTION = `AI Adoption Project Description for ABCDE Ltd.\n\nABCDE Ltd., a mid-sized enterprise specializing in logistics and supply chain solutions, is embarking on an AI adoption initiative to enhance operational efficiency, improve customer experience, and drive data-driven decision-making across the organization. This project will focus on integrating AI-powered tools into core business functions, including demand forecasting, route optimization, inventory management, and customer support. By leveraging machine learning models and natural language processing, the company aims to reduce manual overhead, minimize errors, and uncover actionable insights from historical and real-time data.\n\nThe AI adoption project will be implemented in phases, beginning with a detailed assessment of current workflows and data infrastructure, followed by pilot implementations in targeted departments. Key goals include reducing delivery delays by 15%, lowering operational costs by 10%, and improving service responsiveness. A cross-functional task force comprising data scientists, IT professionals, and business stakeholders will oversee the deployment and ensure alignment with organizational objectives. This strategic move is expected to position ABCDE Ltd. as a technology-forward leader in the logistics industry.`;\nconst TIMELINE_CSV = `phase,phase_name,start_week,end_week,key_activities,milestones_deliverables\n1,Project Initiation,1,2,\"Define project scope; Form cross-functional team; Initial stakeholder meeting\",\"Project charter signed off; Team structure finalized\"\n2,Current State Analysis,3,4,\"Assess existing processes & systems; Identify data sources & gaps\",\"Current systems audit report; Gap analysis report\"\n3,Use Case Selection,5,6,\"Shortlist priority AI use cases (forecasting, route optimization)\",\"Final list of prioritized use cases with success criteria\"\n4,Pilot Design,7,10,\"Data collection & preparation; Model design and development\",\"Working prototype models; Data pipelines established\"\n5,Pilot Implementation,11,14,\"Deploy AI models in test environments; Monitor performance\",\"Pilot results report; User feedback and performance metrics\"\n6,Evaluation & Iteration,15,16,\"Evaluate pilot outcomes; Adjust models as needed\",\"Updated models and process refinements\"\n7,Full Deployment,17,22,\"Scale AI models across selected departments; Train staff\",\"Full production rollout; Training sessions completed\"\n8,Monitoring & Review,23,24,\"Continuous performance monitoring; Final project review\",\"Project closure report; Recommendations for future scaling\"`;\nconst RISKS_CSV = `risk_id,category,risk_challenge,impact,mitigation_strategy\nR01,Data Quality & Availability,Incomplete or unstructured data,Poor model performance and inaccurate outcomes,Perform early data audits and implement robust data governance\nR02,Integration Issues,Difficulty integrating AI with legacy systems,Delays in deployment and operational disruptions,Plan integration roadmap and use APIs/middleware\nR03,Talent & Skills Gap,Lack of internal AI/ML expertise,Overreliance on external vendors and slow progress,Provide staff training and hire specialized talent\nR04,Change Resistance,Employees resist adopting AI-driven workflows,Low adoption and reduced ROI,Strong change management and early engagement\nR05,Ethical & Legal Concerns,Risks of biased models or data privacy violations,Legal repercussions and reputational damage,Involve legal early and implement fairness checks\nR06,Cost Overruns,Underestimation of AI development costs,Budget constraints and project delays,Set realistic budget and build in contingency funds\nR07,Unrealistic Expectations,Stakeholders expect immediate ROI,Disillusionment and loss of support,Align expectations and show quick wins\nR08,Model Performance Drift,AI models lose accuracy over time,Incorrect decisions and trust erosion,Regular retraining cycles and monitoring dashboards\nR09,Security Vulnerabilities,AI models targeted by adversarial attacks,Data breaches and operational risks,Adopt AI security best practices and penetration testing\nR10,Vendor Lock-in,Overdependence on a specific AI platform,Flexibility loss and future switching costs,Favor open standards and negotiate flexible vendor terms`;\nconst TASKS_CSV = `task_id,task_name,status,assignee,priority,sprint,due_date,labels,description\nT001,Define project scope and objectives,Done,Arjun Mehta,High,Sprint 1,2026-04-07,Planning,\"Document project scope, goals, and success criteria for AI adoption\"\nT002,Form cross-functional task force,Done,Sarah Lin,High,Sprint 1,2026-04-07,Planning,\"Identify and onboard team members from data science, IT, and business units\"\nT003,Initial stakeholder alignment meeting,Done,Arjun Mehta,High,Sprint 1,2026-04-10,Planning,\"Present project charter and get sign-off from leadership\"\nT004,Audit existing data infrastructure,Done,Priya Nair,High,Sprint 2,2026-04-18,Analysis,\"Assess current databases, data pipelines, and data quality\"\nT005,Map current logistics workflows,Done,James Wong,Medium,Sprint 2,2026-04-18,Analysis,\"Document end-to-end processes for demand forecasting, routing, and inventory\"\nT006,Identify data gaps and quality issues,In Progress,Priya Nair,High,Sprint 2,2026-04-21,Analysis,\"Gap analysis report comparing available data vs requirements for AI models\"\nT007,Shortlist AI use cases,In Progress,Arjun Mehta,High,Sprint 3,2026-04-28,Use Cases,\"Evaluate and prioritize: demand forecasting, route optimization, inventory mgmt, customer support\"\nT008,Define success criteria for each use case,To Do,Sarah Lin,High,Sprint 3,2026-05-02,Use Cases,\"Set measurable KPIs: 15% reduction in delivery delays, 10% cost reduction\"\nT009,Vendor evaluation for ML platform,To Do,James Wong,Medium,Sprint 3,2026-05-05,Use Cases,\"Compare cloud ML platforms (AWS SageMaker, Azure ML, GCP Vertex AI)\"\nT010,Collect historical demand data,To Do,Priya Nair,High,Sprint 4,2026-05-12,Data Prep,\"Extract 2 years of demand data from ERP system\"\nT011,Data cleaning and preprocessing pipeline,To Do,Priya Nair,High,Sprint 4,2026-05-19,Data Prep,\"Build automated pipeline for data cleaning, normalization, feature engineering\"\nT012,Design demand forecasting model,To Do,Ravi Kumar,High,Sprint 4,2026-05-19,Model Dev,\"Select algorithm (LSTM, Prophet, XGBoost), define input features\"\nT013,Design route optimization model,To Do,Ravi Kumar,Medium,Sprint 5,2026-05-26,Model Dev,\"Graph-based optimization with constraints (time windows, vehicle capacity)\"\nT014,Build model training pipeline,To Do,Ravi Kumar,High,Sprint 5,2026-06-02,Model Dev,\"Automated training, validation, and model versioning\"\nT015,Deploy demand model to test environment,To Do,James Wong,High,Sprint 6,2026-06-09,Pilot,\"Deploy to staging, set up monitoring, define test scenarios\"\nT016,Run pilot with logistics team,To Do,Arjun Mehta,High,Sprint 6,2026-06-16,Pilot,\"2-week pilot with 3 logistics coordinators using demand forecasting predictions\"\nT017,Collect pilot feedback and metrics,To Do,Sarah Lin,High,Sprint 7,2026-06-23,Evaluation,\"Survey users, measure prediction accuracy, compare with manual forecasts\"\nT018,Iterate on model based on feedback,To Do,Ravi Kumar,Medium,Sprint 7,2026-06-30,Evaluation,\"Adjust features, retrain model, validate improvements\"\nT019,Prepare production deployment plan,To Do,James Wong,High,Sprint 8,2026-07-07,Deployment,\"Infrastructure scaling, rollback plan, monitoring setup\"\nT020,Staff training program,To Do,Sarah Lin,Medium,Sprint 8,2026-07-14,Deployment,\"Train 25 logistics staff on using AI-powered forecasting dashboard\"\nT021,Full production rollout,To Do,Arjun Mehta,High,Sprint 9,2026-07-21,Deployment,\"Go-live for demand forecasting across all 3 distribution centers\"\nT022,Set up continuous monitoring,To Do,Priya Nair,High,Sprint 9,2026-07-28,Monitoring,\"Model performance dashboards, drift detection alerts, retraining triggers\"\nT023,Project closure report,To Do,Arjun Mehta,Medium,Sprint 10,2026-08-04,Monitoring,\"Final report: outcomes vs targets, lessons learned, recommendations for Phase 2\"\nT024,Security review of AI infrastructure,Blocked,James Wong,High,Sprint 5,2026-05-26,Security,\"Penetration testing and vulnerability assessment - BLOCKED: waiting for security team availability\"\nT025,Legal review of data usage,In Progress,Sarah Lin,High,Sprint 3,2026-04-28,Compliance,\"Review data privacy compliance for using customer delivery data in ML models\"`;\n\n// ---------- Helpers ----------\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [], field = '', inQuotes = false;\n  for (let i = 0; i < text.length; i++) {\n    const c = text[i];\n    if (inQuotes) {\n      if (c === '\"' && text[i + 1] === '\"') { field += '\"'; i++; }\n      else if (c === '\"') inQuotes = false;\n      else field += c;\n    } else if (c === '\"') inQuotes = true;\n    else if (c === ',') { row.push(field); field = ''; }\n    else if (c === '\\n' || c === '\\r') {\n      if (c === '\\r' && text[i + 1] === '\\n') i++;\n      row.push(field); field = '';\n      if (row.some((v) => v.trim() !== '')) rows.push(row);\n      row = [];\n    } else field += c;\n  }\n  row.push(field);\n  if (row.some((v) => v.trim() !== '')) rows.push(row);\n  const [header, ...body] = rows;\n  return body.map((r) => Object.fromEntries(header.map((h, i) => [h.trim(), (r[i] ?? '').trim()])));\n}\n\nconst DAY = 86400000;\nconst toDate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };\nconst fmt = (d) => d.toISOString().slice(0, 10);\nconst addDays = (d, n) => new Date(d.getTime() + n * DAY);\nconst daysBetween = (a, b) => Math.round((b - a) / DAY);\nconst countBy = (arr, key) => arr.reduce((acc, x) => ({ ...acc, [x[key]]: (acc[x[key]] ?? 0) + 1 }), {});\n\nconst asOf = toDate(cfg.asOfDate);\nconst projectStart = toDate(cfg.projectStartDate);\nconst upcomingEnd = addDays(asOf, Number(cfg.upcomingWindowDays));\nconst dueSoonEnd = addDays(asOf, Number(cfg.dueSoonDays));\nconst STATUSES = ['Done', 'In Progress', 'Blocked', 'To Do'];\n\n// ---------- Timeline: week numbers -> calendar dates ----------\nconst timeline = parseCsv(TIMELINE_CSV).map((p) => {\n  const start = addDays(projectStart, (Number(p.start_week) - 1) * 7);\n  const end = addDays(projectStart, Number(p.end_week) * 7 - 1);\n  const status = end < asOf ? 'Completed (by schedule)' : start > asOf ? 'Upcoming' : 'Current';\n  return {\n    phase: Number(p.phase),\n    phase_name: p.phase_name,\n    start_week: Number(p.start_week),\n    end_week: Number(p.end_week),\n    start_date: fmt(start),\n    end_date: fmt(end),\n    schedule_status: status,\n    key_activities: p.key_activities.split(';').map((s) => s.trim()).filter(Boolean),\n    milestones: p.milestones_deliverables.split(';').map((s) => s.trim()).filter(Boolean),\n  };\n});\n\n// Each milestone is due at the end of its phase.\nconst milestones = timeline.flatMap((p) => p.milestones.map((m) => ({\n  milestone: m,\n  phase: p.phase,\n  phase_name: p.phase_name,\n  due_week: p.end_week,\n  due_date: p.end_date,\n  days_from_as_of: daysBetween(asOf, toDate(p.end_date)),\n})));\n\n// ---------- Project outcome phrases ----------\n// Short verbatim phrases from the description (goals, use cases, capabilities). Agents cite these\n// from a fixed list instead of free-text quoting, so a citation can never be invented.\nconst LEAD = /^(and|or|including|include|includes|the company aims to|aims to|by leveraging|by|to|of|with|is embarking on an ai adoption initiative to|key goals include|this project will focus on|beginning with|followed by|will)\\s+/i;\nconst outcomePhrases = [...new Set(PROJECT_DESCRIPTION.split('\\n').slice(1).join(' ')\n  .split(/[.;,]|\\s+and\\s+(?=[a-z]+ing\\b|improv|reduc|lower|minim|uncov|drive|enhanc)/)\n  .map((s) => { let t = s.trim(), prev; do { prev = t; t = t.replace(LEAD, ''); } while (t !== prev); return t; })\n  .filter((s) => { const n = s.split(/\\s+/).length; return n >= 2 && n <= 9 && !/ABCDE|^This|^The /.test(s); }))];\nconst USE_CASES = ['demand forecasting', 'route optimization', 'inventory management', 'customer support']\n  .filter((u) => PROJECT_DESCRIPTION.toLowerCase().includes(u));\n\n// ---------- Risks ----------\nconst risks = parseCsv(RISKS_CSV);\n\n// ---------- Tasks ----------\nconst tasks = parseCsv(TASKS_CSV).map((t) => {\n  const due = toDate(t.due_date);\n  return { ...t, days_until_due: daysBetween(asOf, due) };\n});\nconst open = (t) => t.status !== 'Done';\n\nconst statusCounts = Object.fromEntries(STATUSES.map((s) => [s, tasks.filter((t) => t.status === s).length]));\nconst unknownStatuses = tasks.filter((t) => !STATUSES.includes(t.status)).map((t) => `${t.task_id}: ${t.status}`);\n\nconst sprintNames = [...new Set(tasks.map((t) => t.sprint))]\n  .sort((a, b) => Number(a.replace(/\\D/g, '')) - Number(b.replace(/\\D/g, '')));\nconst sprints = sprintNames.map((name) => {\n  const ts = tasks.filter((t) => t.sprint === name);\n  const dues = ts.map((t) => t.due_date).sort();\n  return {\n    sprint: name,\n    first_due: dues[0],\n    last_due: dues[dues.length - 1],\n    task_count: ts.length,\n    status_counts: Object.fromEntries(STATUSES.map((s) => [s, ts.filter((t) => t.status === s).length])),\n    task_ids: ts.map((t) => t.task_id),\n  };\n});\n// Current sprint = first sprint whose last due date has not passed.\nconst currentSprint = (sprints.find((s) => toDate(s.last_due) >= asOf) ?? sprints[sprints.length - 1]).sprint;\n\nconst brief = (t) => ({\n  task_id: t.task_id, task_name: t.task_name, status: t.status, assignee: t.assignee,\n  priority: t.priority, sprint: t.sprint, due_date: t.due_date, days_until_due: t.days_until_due,\n});\n\nconst blocked = tasks.filter((t) => t.status === 'Blocked').map((t) => ({ ...brief(t), description: t.description }));\nconst overdue = tasks.filter((t) => open(t) && toDate(t.due_date) < asOf).map(brief);\nconst dueSoon = tasks.filter((t) => open(t) && t.status !== 'Blocked'\n  && toDate(t.due_date) >= asOf && toDate(t.due_date) <= dueSoonEnd).map(brief);\n\nconst workload = Object.entries(countBy(tasks.filter(open), 'assignee'))\n  .map(([assignee, open_tasks]) => ({\n    assignee,\n    open_tasks,\n    open_high_priority: tasks.filter((t) => open(t) && t.assignee === assignee && t.priority === 'High').length,\n    in_progress: tasks.filter((t) => t.status === 'In Progress' && t.assignee === assignee).map((t) => t.task_id),\n  }))\n  .sort((a, b) => b.open_tasks - a.open_tasks);\n\nconst currentWeek = Math.floor(daysBetween(projectStart, asOf) / 7) + 1;\nconst currentPhase = timeline.find((p) => p.schedule_status === 'Current') ?? null;\n\nconst facts = {\n  as_of_date: fmt(asOf),\n  project_start_date: fmt(projectStart),\n  current_week: currentWeek,\n  total_weeks: Math.max(...timeline.map((p) => p.end_week)),\n  current_phase: currentPhase ? `Phase ${currentPhase.phase}: ${currentPhase.phase_name}` : 'None (outside timeline)',\n  current_sprint: currentSprint,\n  total_tasks: tasks.length,\n  status_counts: statusCounts,\n  completion_pct: Math.round((statusCounts.Done / tasks.length) * 100),\n  blocked_tasks: blocked,\n  overdue_tasks: overdue,\n  due_soon_tasks: dueSoon,\n  due_soon_window: `${fmt(asOf)} to ${fmt(dueSoonEnd)}`,\n  upcoming_milestones: milestones.filter((m) => m.days_from_as_of >= 0 && toDate(m.due_date) <= upcomingEnd),\n  upcoming_window: `${fmt(asOf)} to ${fmt(upcomingEnd)}`,\n  next_milestones_after_window: milestones.filter((m) => toDate(m.due_date) > upcomingEnd).slice(0, 2),\n  sprints,\n  workload,\n  risk_count: risks.length,\n  risk_categories: risks.map((r) => `${r.risk_id} ${r.category}`),\n  data_warnings: unknownStatuses.map((s) => `Unrecognised task status: ${s}`),\n};\n\nreturn [{\n  json: {\n    project: { name: PROJECT_NAME, description: PROJECT_DESCRIPTION.trim(), outcome_phrases: outcomePhrases, use_cases: USE_CASES },\n    timeline,\n    milestones,\n    risks,\n    tasks,\n    facts,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "9136fea0-6777-419a-bc16-abe0d65ce473",
+      "name": "Self-Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Verifies Knowledge Base FACTS against values hand-counted from the ABCDE Ltd CSVs.\n// Specific to the provided sample data; update the expectations if the data changes.\n\nconst kb = $input.first().json;\nconst f = kb.facts;\nconst ids = (list) => list.map((t) => t.task_id ?? t.milestone).join(', ');\n\nconst checks = [\n  ['Total tasks = 25', f.total_tasks === 25, f.total_tasks],\n  ['Done = 5', f.status_counts.Done === 5, f.status_counts.Done],\n  ['In Progress = 3', f.status_counts['In Progress'] === 3, f.status_counts['In Progress']],\n  ['Blocked = 1', f.status_counts.Blocked === 1, f.status_counts.Blocked],\n  ['To Do = 16', f.status_counts['To Do'] === 16, f.status_counts['To Do']],\n  ['Blocked task is T024', ids(f.blocked_tasks) === 'T024', ids(f.blocked_tasks)],\n  ['T006 is overdue', f.overdue_tasks.some((t) => t.task_id === 'T006'), ids(f.overdue_tasks)],\n  ['Risks = 10 (R01–R10)', kb.risks.length === 10, kb.risks.length],\n  ['Timeline phases = 8', kb.timeline.length === 8, kb.timeline.length],\n  ['Current week = 4', f.current_week === 4, f.current_week],\n  ['Current sprint = Sprint 3', f.current_sprint === 'Sprint 3', f.current_sprint],\n  ['Sprint 2 has 3 tasks (T004–T006)', ids(f.sprints.find((s) => s.sprint === 'Sprint 2').task_ids.map((task_id) => ({ task_id }))) === 'T004, T005, T006',\n    f.sprints.find((s) => s.sprint === 'Sprint 2').task_ids.join(', ')],\n  ['No unrecognised statuses', f.data_warnings.length === 0, f.data_warnings.join('; ') || 'none'],\n];\n\nconst results = checks.map(([check, pass, actual]) => ({ check, result: pass ? 'PASS' : 'FAIL', actual: String(actual) }));\nconst failed = results.filter((r) => r.result === 'FAIL').length;\n\nreturn [{\n  json: {\n    summary: failed === 0 ? `ALL ${results.length} CHECKS PASSED` : `${failed} of ${results.length} CHECKS FAILED`,\n    as_of_date: f.as_of_date,\n    results,\n  },\n}];\n"
+      }
+    },
+    {
+      "id": "0d16230b-49fd-45d1-b123-099234d1ad7d",
+      "name": "Setup Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        140,
+        -280
+      ],
+      "parameters": {
+        "width": 640,
+        "height": 220,
+        "content": "## Mira – Step 2: Knowledge Base\nNo credentials needed. Click **Execute workflow**.\n- **Knowledge Base** → embedded project data + computed `facts` (counts, overdue, blocked, milestones, sprints, workload).\n- **Self-Check** → should say **ALL 13 CHECKS PASSED**.\n- Change `asOfDate` in **Config** to simulate a different 'today'."
+      }
+    }
+  ],
+  "connections": {
+    "Run Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Self-Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
