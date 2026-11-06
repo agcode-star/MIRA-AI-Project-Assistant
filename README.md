@@ -17,9 +17,7 @@ Mira is a multi-agent assistant for PMs/TPMs at Nexora. It turns raw project dat
 - [Q3 Program charter](docs/Q3_program_charter.md)
 - [Q4 Reflection](docs/Q4_reflection.md)
 
-**Slide deck** (14 slides: problem → architecture → results → evaluation → cost → charter → reflection). Two ways to view it:
-- **Online, with speaker notes:** [open the presentation](https://claude.ai/artifact/25u5NS1N55XsPRUBQkaiiX). Use *Present* mode for full screen; the *Share* menu downloads it as PowerPoint or PDF.
-- **PDF in this repo:** [`docs/Mira_Slide_Deck.pdf`](docs/Mira_Slide_Deck.pdf). GitHub previews it in the browser.
+**Slide deck:** [`docs/Mira_Slide_Deck.pdf`](docs/Mira_Slide_Deck.pdf). 14 slides: problem → architecture → results → evaluation → cost → charter → reflection. GitHub previews it in the browser.
 
 ---
 
